@@ -4,8 +4,9 @@
 from __future__ import annotations
 
 from typing import Annotated, Literal
+from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, RootModel
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, RootModel
 
 
 class TaskState(
@@ -202,3 +203,54 @@ class RunEvent(
         | CancelledEvent,
         Field(discriminator='type'),
     ]
+
+
+class Credentials(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    email: Annotated[
+        str, Field(max_length=254, pattern='^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$')
+    ]
+    password: Annotated[
+        str,
+        Field(
+            description='At least 12 characters and at most 72 UTF-8 bytes; passwords are not normalized',
+            max_length=72,
+            min_length=12,
+        ),
+    ]
+
+
+class User(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    id: UUID
+    email: Annotated[
+        str, Field(max_length=254, pattern='^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$')
+    ]
+
+
+class Session(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    user: User
+    csrfToken: str
+
+
+class CreateProject(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    name: Annotated[str, Field(max_length=120, min_length=1)]
+
+
+class Project(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    id: UUID
+    name: str
+    createdAt: AwareDatetime

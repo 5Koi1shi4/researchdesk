@@ -1,10 +1,12 @@
 spring:
+  flyway:
+    enabled: false
   application:
     name: researchdesk-api
   datasource:
     url: ${DATABASE_URL:jdbc:postgresql://localhost:15432/researchdesk}
-    username: ${DATABASE_USER:researchdesk}
-    password: ${DATABASE_PASSWORD:researchdesk-dev-only}
+    username: ${DATABASE_USER:researchdesk_business}
+    password: ${DATABASE_PASSWORD:researchdesk-business-dev-only}
     hikari:
       minimum-idle: 0
       initialization-fail-timeout: -1
@@ -15,6 +17,10 @@ spring:
       port: ${REDIS_PORT:16379}
       connect-timeout: 2s
       timeout: 2s
+researchdesk:
+  auth:
+    cookie-secure: ${SESSION_COOKIE_SECURE:false}
+    session-seconds: ${SESSION_SECONDS:86400}
 management:
   endpoints:
     web:

@@ -1,6 +1,6 @@
 # ResearchDesk
 
-A separate research workspace built with React/TypeScript, Spring Boot, and an internal Python service. This initial foundation provides service health, dependency readiness, and shared contracts. Uploads, authentication, retrieval, generation, and reports arrive in later tasks. The frontend is explicitly a foundation preview; no model output is simulated or claimed as real.
+A separate research workspace built with React/TypeScript, Spring Boot, and an internal Python service. The workspace now provides email-form account registration, login, and private projects, plus service health and shared contracts. Uploads, retrieval, generation, and reports arrive in later tasks. No model output is simulated or claimed as real.
 
 ## Run locally (Windows / PowerShell 7)
 
@@ -22,7 +22,7 @@ The Dockerfiles package tested host artifacts and the downloaded, hash-checked L
 
 ```powershell
 ./scripts/test-api.ps1 -Test ContractsTest       # Maven test; passes -Dtest
-./scripts/test-api.ps1 -Integration HealthIT    # Maven verify; passes -Dit.test
+./scripts/test-api.ps1 -Test HealthIT -Integration    # Maven verify; passes -Dit.test
 ./scripts/test-contracts.ps1                   # regenerate, check drift, Python/TS/Java checks
 ./scripts/generate-contracts.ps1               # intentionally update generated types
 apps/ai/.venv/Scripts/python.exe -m pytest apps/ai/tests
@@ -36,6 +36,23 @@ The Maven integration tests default to unavailable host dependencies (503). For 
 
 `contracts/openapi.json` is the canonical OpenAPI 3.1 definition. It specifies TaskState, RunState, RunKind, GenerationRequest, Citation, ApiError, InternalTask, and each discriminated RunEvent payload. TypeScript and Pydantic types are generated from it; Java DTOs share the exact JSON field names, with shared fixture round trips checked across languages. Unknown enum values fail validation. The drift check regenerates committed files before testing so stale generated types cannot silently pass.
 
-Only Java will authorize user/project/document scope and forward AI traffic; the internal service has no host port or browser-facing proxy route. This foundation has no user-facing business endpoints, no database migrations, and no model integration. `.env.example` reserves provider and limit settings for later tasks. Do not put credentials into frontend builds. Database schema accounts, service identity, ownership checks, and stale-fence rejection are required in the subsequent implementation tasks.
+Only Java will authorize user/project/document scope and forward AI traffic; the internal service has no host port or browser-facing proxy route. Auth and project endpoints are defined in the canonical contract. The migration-only Compose job applies versioned Flyway migrations before Java starts; the running API has only business-schema privileges and Python has only retrieval-schema privileges. There is no model integration. `.env.example` reserves provider and limit settings for later tasks. Do not put credentials into frontend builds. Project ownership is checked by Java using both resource and session-user IDs. Service identity and stale-fence rejection arrive in subsequent tasks.
 
 This Compose baseline is development-only. It uses HTTP on loopback; production needs HTTPS and secrets. In particular, the pinned cached MinIO image predates the official CVE-2025-62506 fix and must be replaced with a reviewed patched build before production. No MinIO storage/admin ports are exposed to the host. See [dependency baseline](docs/dependency-baseline.md) for exact versions, digests, official sources, and limitations.
+
+## Accounts and private projects
+
+Open http://localhost:18080 and register with an email-form username and a password of at least 12 characters (at most 72 UTF-8 bytes). There is no email verification or password recovery. Projects are private to the account. Logout revokes the server session; expired/revoked sessions clear private frontend state and return to login.
+
+Server sessions expire after 24 hours by default, use a random HttpOnly SameSite=Lax cookie, and store only its SHA256 digest in PostgreSQL. Write operations use the per-session X-CSRF-Token returned from auth/session. Registration/login before authentication reject cross-origin browser requests; when a valid session exists they also require its CSRF token. Login rotates both cookie and CSRF token. BCrypt cost12 hashes passwords. Five failed logins per email in a 15-minute window are allowed; the sixth is429. The edge overwrites X-Real-IP for the additional IP limits (100 login/registration attempts per15minutes).
+
+Fresh PostgreSQL volumes provision the separate login roles automatically. For an existing Task1 volume, recreate only this project's PostgreSQL service to mount the provisioning files, then provision before starting the migration/API:
+
+```powershell
+docker compose -f infra/compose.yaml up -d --no-build postgres
+./scripts/provision-database.ps1
+docker compose -f infra/compose.yaml up -d --no-build
+./scripts/test-api.ps1 -Test ProjectOwnershipIT -Integration
+```
+
+ProjectOwnershipIT is explicit Compose acceptance, uses unique fixture accounts, and cleans only those accounts/projects/sessions. It fails if the API/database are unavailable. It needs access to this project's Docker daemon for PostgreSQL fixture setup/cleanup; it does not expose a database port. Unit/host health checks continue to run separately. Set SESSION_COOKIE_SECURE=true behind production HTTPS and replace all development database passwords. API and AI runtime containers never receive the PostgreSQL administrator password; only the exited migration job uses it.

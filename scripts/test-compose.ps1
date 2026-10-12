@@ -19,6 +19,19 @@ print('Internal AI health passed; readiness', code)
 '@
     Invoke-Compose -ComposeArgs @('exec', '-T', 'ai', 'python', '-c', $probe, "$Expected")
 }
+function Wait-ApiRecovery {
+    # Container health precedes the application's client reconnection.
+    $deadline = [DateTime]::UtcNow.AddSeconds(30)
+    $lastStatus = 'unreachable'
+    do {
+        try {
+            $lastStatus = (Invoke-WebRequest "$ApiUrl/api/ready" -SkipHttpErrorCheck -TimeoutSec 3).StatusCode
+            if ($lastStatus -eq 200) { return }
+        } catch { $lastStatus = 'unreachable' }
+        Start-Sleep -Milliseconds 250
+    } while ([DateTime]::UtcNow -lt $deadline)
+    throw "API did not recover within 30 seconds; readiness was $lastStatus."
+}
 & "$PSScriptRoot/test-health.ps1" -ApiUrl $ApiUrl
 Test-Ai 200
 if ((Invoke-WebRequest $ApiUrl -TimeoutSec 10).StatusCode -ne 200) { throw 'Frontend did not respond' }
@@ -30,6 +43,7 @@ foreach ($dependency in @('redis', 'postgres')) {
     } finally {
         Invoke-Compose -ComposeArgs @('start', '--wait', $dependency)
     }
+    Wait-ApiRecovery
     & "$PSScriptRoot/test-health.ps1" -ApiUrl $ApiUrl
     Test-Ai 200
 }

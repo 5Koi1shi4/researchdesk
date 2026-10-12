@@ -4,6 +4,7 @@ The following files have been resolved:
    com.fasterxml.jackson.core:jackson-annotations:jar:2.21:compile -- module com.fasterxml.jackson.annotation
    com.fasterxml.jackson.core:jackson-core:jar:2.21.4:compile -- module com.fasterxml.jackson.core
    com.fasterxml.jackson.core:jackson-databind:jar:2.21.4:compile -- module com.fasterxml.jackson.databind
+   com.fasterxml.jackson.dataformat:jackson-dataformat-toml:jar:2.21.4:compile -- module com.fasterxml.jackson.dataformat.toml
    com.fasterxml.jackson.datatype:jackson-datatype-jdk8:jar:2.21.4:compile -- module com.fasterxml.jackson.datatype.jdk8
    com.fasterxml.jackson.datatype:jackson-datatype-jsr310:jar:2.21.4:compile -- module com.fasterxml.jackson.datatype.jsr310
    com.fasterxml.jackson.module:jackson-module-parameter-names:jar:2.21.4:compile -- module com.fasterxml.jackson.module.paramnames
@@ -38,6 +39,8 @@ The following files have been resolved:
    org.apiguardian:apiguardian-api:jar:1.1.2:test -- module org.apiguardian.api
    org.assertj:assertj-core:jar:3.27.7:test -- module org.assertj.core
    org.awaitility:awaitility:jar:4.2.2:test -- module awaitility (auto)
+   org.flywaydb:flyway-core:jar:11.7.2:compile -- module flyway.core (auto)
+   org.flywaydb:flyway-database-postgresql:jar:11.7.2:compile -- module flyway.database.postgresql (auto)
    org.hamcrest:hamcrest:jar:3.0:test -- module org.hamcrest [auto]
    org.hdrhistogram:HdrHistogram:jar:2.2.2:runtime -- module HdrHistogram (auto)
    org.junit.jupiter:junit-jupiter-api:jar:5.12.2:test -- module org.junit.jupiter.api
@@ -75,6 +78,7 @@ The following files have been resolved:
    org.springframework.data:spring-data-commons:jar:3.5.13:compile -- module spring.data.commons [auto]
    org.springframework.data:spring-data-keyvalue:jar:3.5.13:compile -- module spring.data.keyvalue [auto]
    org.springframework.data:spring-data-redis:jar:3.5.13:compile -- module spring.data.redis [auto]
+   org.springframework.security:spring-security-crypto:jar:6.5.11:compile -- module spring.security.crypto [auto]
    org.springframework:spring-aop:jar:6.2.19:compile -- module spring.aop [auto]
    org.springframework:spring-beans:jar:6.2.19:compile -- module spring.beans [auto]
    org.springframework:spring-context-support:jar:6.2.19:compile -- module spring.context.support [auto]

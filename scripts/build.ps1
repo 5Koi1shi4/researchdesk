@@ -5,7 +5,7 @@ $env:npm_config_cache = Join-Path $root '.cache/npm'
 Push-Location $root
 try {
     & "$PSScriptRoot/test-contracts.ps1"
-    & "$PSScriptRoot/test-api.ps1" -Integration HealthIT
+    & "$PSScriptRoot/test-api.ps1" -Test HealthIT -Integration
     Push-Location apps/web
     try {
         npm ci
