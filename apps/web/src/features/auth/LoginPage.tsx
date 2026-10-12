@@ -17,4 +17,3 @@ export function LoginPage({ onSession }: { onSession: (session: Session) => void
       <button className="text-button" disabled={busy} onClick={() => { setRegister(!register); setError(''); setPassword(''); }}>{register ? '已有账号？返回登录' : '没有账号？创建账号'}</button>
       <p className="caption">邮箱仅用于登录，无邮箱验证和密码找回。请妥善保存密码。</p></section></main>;
 }
-

@@ -9,5 +9,3 @@ export function ReportPage({projectId,csrfToken,generatedRunId}:{projectId:strin
  if(selected)return <ReportEditor key={selected} reportId={selected} csrfToken={csrfToken} onClose={()=>{setSelected(null);setRefresh(n=>n+1);}} onReportCopied={setSelected}/>;
  return <section className="reports"><h2>研究报告</h2><p>从空白报告开始，或打开研究生成的草稿。</p>{error?<><p role="alert" className="error">{error}</p>{generatedRunId?<button onClick={()=>setRefresh(n=>n+1)}>重试打开报告</button>:null}</>:null}<form className="project-create" onSubmit={create}><div><label htmlFor="report-title">报告标题</label><input id="report-title" required maxLength={200} value={title} onChange={e=>setTitle(e.target.value)}/></div><button disabled={busy} type="submit">新建空白报告</button></form>{loading?<p role="status">正在加载报告…</p>:reports.length?<ul className="report-list">{reports.map(report=><li key={report.id}><button className="secondary" onClick={()=>setSelected(report.id)}>{report.title} · 版本 {report.currentVersion}</button></li>)}</ul>:<section className="empty-state"><h3>还没有报告</h3><p>创建一份空白报告，撰写内容后显式保存新版本。</p></section>}</section>;
 }
-
-

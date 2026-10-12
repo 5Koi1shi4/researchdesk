@@ -17,4 +17,3 @@ export const reportsApi={
  download:(id:string,exportId:string)=>`${path(id)}/exports/${encodeURIComponent(exportId)}/download`
 };
 export function allowReportLeave(){const event=new Event('report-before-leave',{cancelable:true});window.dispatchEvent(event);return !event.defaultPrevented;}
-

@@ -141,6 +141,3 @@ export function ResearchPage({project,session,renderSource,onOpenReports}:{proje
  <aside className="research-evidence" aria-label="引用证据"><h3>03 / 引用证据</h3>{source?<><h4>{source.title}</h4>{source.availability==='DELETED'?<p>此来源已删除，无法查看原文。</p>:<><p className="caption">{source.page?`第 ${source.page} 页`:source.paragraph?`第 ${source.paragraph} 段`:'来源片段'}</p>{renderSource?renderSource(source):<><blockquote>{source.excerpt||'此引用未包含摘录。'}</blockquote><p className="caption">引用快照；完整原文预览将在资料模块接入后提供。</p></>}</>}</>:<p className="caption">完成回答后，选择引用按钮查看证据。支持 Tab 和 Enter 键。</p>}</aside>
  </div></section>;
 }
-
-
-

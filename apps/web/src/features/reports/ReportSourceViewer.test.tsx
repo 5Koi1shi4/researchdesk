@@ -12,4 +12,3 @@ it('passes the currently projected citation to the source renderer and redacts o
  view.rerender(<ReportPreview markdown="事实[[cite:c1]]" citations={[{...citation,availability:'DELETED',excerpt:null}]} renderSource={renderSource}/>);
  expect(screen.queryByText('实时原文 c1')).toBeNull();expect(screen.queryByText('旧摘录')).toBeNull();
 });
-

@@ -23,4 +23,3 @@ it('opens authorized full source from research citations in the project shell',a
  (await screen.findByRole('button',{name:'引用 1：来源'})).click();
  expect(await screen.findByText('完整资料独有内容')).toBeTruthy();
 });
-

@@ -47,4 +47,3 @@ try{
  await page.getByRole('button',{name:'报告',exact:true}).click();await page.getByRole('button',{name:new RegExp('总结索引.*版本 2')}).click();await page.getByRole('button',{name:/^引用 1：/}).first().click();await page.getByText('来源已删除，原文与摘录无法访问。',{exact:true}).waitFor();assert.equal(await page.getByRole('region',{name:'原文预览'}).count(),0);check('deletion redacts answer/report citations, denies old attachment and retry409');
  await writeFile(path.join(output,'result.json'),JSON.stringify({...evidence,completedAt:new Date().toISOString()},null,2));console.log('Evidence '+output);
 }catch(error){await page.screenshot({path:path.join(output,'journey-failure.png'),fullPage:true}).catch(()=>{});throw error;}finally{await context.close();}
-

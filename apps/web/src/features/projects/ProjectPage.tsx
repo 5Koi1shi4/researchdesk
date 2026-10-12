@@ -27,5 +27,3 @@ export function ProjectPage({ session, onLogout }: { session: Session; onLogout:
     {loading ? <p role="status">正在加载项目…</p> : projects.length === 0 ? <section className="empty-state"><h2>从一个研究主题开始</h2><p>创建你的第一个项目，随后在项目内添加资料。</p></section> : <ul className="project-list">{projects.map(project => <li key={project.id}><button disabled={busy} onClick={() => open(project)}><span className="project-title">{project.name}</span><span className="caption">创建于 {new Date(project.createdAt).toLocaleDateString('zh-CN')}</span><span className="open-label">打开项目 →</span></button></li>)}</ul>}</>}
     </main></div>;
 }
-
-
