@@ -1,0 +1,78 @@
+{
+  "date": "2026-10-12",
+  "status": "PASS",
+  "mode": "DEMO",
+  "command": "scripts/verify.ps1 -Scope Full -Project researchdesk-test-integration -Port 18087",
+  "exitCode": 0,
+  "counts": {
+    "javaUnits": 35,
+    "javaOrdinaryIntegrationExecutions": 52,
+    "javaUploadLimitIntegrationExecutions": 1,
+    "javaRaceIntegrationExecutions": 9,
+    "pythonUnitsAndScoring": 151,
+    "pythonIntegration": 11,
+    "webTests": 65
+  },
+  "mainBrowser": {
+    "project": "researchdesk-test-integration",
+    "base": "http://127.0.0.1:18087",
+    "startedAt": "2026-10-12T08:08:12.329Z",
+    "checks": [
+      "real upload → ingestion READY",
+      "scoped ANSWER + demo label + full authorized source",
+      "real REPORT pipeline creates exact editable draft",
+      "save immutable version + history + report source viewer",
+      "actual Markdown and PDF downloads with content/signature",
+      "mobile390 editor layout",
+      "foreign account isolation including run-report lookup",
+      "deletion redacts answer/report citations, denies old attachment and retry409"
+    ],
+    "runId": "b963def8-f7f3-4ffa-b52e-56cbcc02582d",
+    "reportId": "4c8eabf4-61d3-4786-8717-0f2f22e215d6",
+    "completedAt": "2026-10-12T08:08:24.925Z"
+  },
+  "freshBrowser": {
+    "project": "researchdesk-test-fresh-f7e4c2e9",
+    "base": "http://127.0.0.1:18089",
+    "startedAt": "2026-10-12T08:10:35.567Z",
+    "checks": [
+      "real upload → ingestion READY",
+      "scoped ANSWER + demo label + full authorized source",
+      "real REPORT pipeline creates exact editable draft",
+      "save immutable version + history + report source viewer",
+      "actual Markdown and PDF downloads with content/signature",
+      "mobile390 editor layout",
+      "foreign account isolation including run-report lookup",
+      "deletion redacts answer/report citations, denies old attachment and retry409"
+    ],
+    "runId": "56d99e15-ad72-4c59-b0a2-98e816e05b90",
+    "reportId": "01c4918a-6dd2-427c-a04f-251c74714ae0",
+    "completedAt": "2026-10-12T08:10:47.986Z"
+  },
+  "backup": {
+    "status": "PASS",
+    "scope": "integrated cold backup/restore",
+    "backup": "drill-afccbf640e3e",
+    "restoreProject": "researchdesk-test-delivery-restore-drill-afccbf640e3e",
+    "backupSeconds": 29.49,
+    "restoreToVerifiedSeconds": 26.84,
+    "verified": [
+      "existing login",
+      "READY document",
+      "exact original bytes SHA256",
+      "published index",
+      "new authenticated write",
+      "two immutable report versions",
+      "historical Markdown/PDF exact bytes"
+    ],
+    "pending": []
+  },
+  "deferred": [
+    "real provider configuration/execution",
+    "semantic-model and holdout quality evaluation"
+  ],
+  "preservedStoppedProjects": [
+    "researchdesk-test-fresh-f7e4c2e9",
+    "researchdesk-test-delivery-restore-drill-afccbf640e3e"
+  ]
+}
