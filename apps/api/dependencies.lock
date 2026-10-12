@@ -1,3 +1,4 @@
+
 The following files have been resolved:
    ch.qos.logback:logback-classic:jar:1.5.34:compile -- module ch.qos.logback.classic
    ch.qos.logback:logback-core:jar:1.5.34:compile -- module ch.qos.logback.core
@@ -23,7 +24,6 @@ The following files have been resolved:
    com.zaxxer:HikariCP:jar:6.3.3:compile -- module com.zaxxer.hikari
    commons-codec:commons-codec:jar:1.18.0:compile -- module org.apache.commons.codec
    commons-io:commons-io:jar:2.20.0:compile -- module org.apache.commons.io
-   commons-logging:commons-logging:jar:1.3.5:compile -- module org.apache.commons.logging
    io.lettuce:lettuce-core:jar:6.6.0.RELEASE:compile -- module lettuce.core [auto]
    io.micrometer:micrometer-commons:jar:1.15.12:compile -- module micrometer.commons [auto]
    io.micrometer:micrometer-core:jar:1.15.12:compile -- module micrometer.core [auto]

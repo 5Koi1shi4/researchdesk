@@ -1,0 +1,6 @@
+source.tar.gz
+minio-*/
+tag.json
+gomod-cache/*
+!gomod-cache/.keep
+probe.mod

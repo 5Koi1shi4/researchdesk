@@ -18,6 +18,17 @@ class HealthIT {
 
     @Test void readinessReflectsRealDatabaseAndQueue() {
         int expected = Integer.parseInt(System.getenv().getOrDefault("EXPECTED_READINESS", "503"));
-        assertThat(http.getForEntity("/api/ready", String.class).getStatusCode().value()).isEqualTo(expected);
+        // Quiet only the probe failures deliberately expected by this standalone test.
+        // Production logging and a test configured to expect UP retain their diagnostics.
+        var probes=java.util.List.of(
+            (ch.qos.logback.classic.Logger)org.slf4j.LoggerFactory.getLogger("org.springframework.boot.actuate.jdbc.DataSourceHealthIndicator"),
+            (ch.qos.logback.classic.Logger)org.slf4j.LoggerFactory.getLogger("org.springframework.boot.actuate.data.redis.RedisReactiveHealthIndicator"));
+        var levels=probes.stream().map(ch.qos.logback.classic.Logger::getLevel).toList();
+        try {
+            if(expected==503) probes.forEach(logger->logger.setLevel(ch.qos.logback.classic.Level.ERROR));
+            assertThat(http.getForEntity("/api/ready", String.class).getStatusCode().value()).isEqualTo(expected);
+        } finally {
+            for(int i=0;i<probes.size();i++) probes.get(i).setLevel(levels.get(i));
+        }
     }
 }

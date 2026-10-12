@@ -12,13 +12,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** Explicit Compose acceptance: real HTTP, real PostgreSQL, no host database port. */
 class ProjectOwnershipIT {
     private static final ObjectMapper JSON = new ObjectMapper();
-    private final String base = System.getenv().getOrDefault("ACCEPTANCE_URL", "http://localhost:18080");
+    private final String base = com.researchdesk.ComposeFixture.baseUrl();
     private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
     private final List<String> fixtureEmails = new ArrayList<>();
     record Session(String cookie, String csrf, String email) {}
     record Result(int status, JsonNode body, HttpHeaders headers) {}
     String fixtureSql(String sql) throws Exception {
-        var process = new ProcessBuilder("docker", "compose", "-f", java.nio.file.Path.of(System.getProperty("user.dir"), "../../infra/compose.yaml").normalize().toString(), "exec", "-T", "postgres", "psql", "-U", "researchdesk", "-d", "researchdesk", "-v", "ON_ERROR_STOP=1", "-At", "-c", sql).redirectErrorStream(true).start();
+        var process = new ProcessBuilder("docker", "compose", "-p", com.researchdesk.ComposeFixture.project(), "-f", java.nio.file.Path.of(System.getProperty("user.dir"), "../../infra/compose.yaml").normalize().toString(), "exec", "-T", "postgres", "psql", "-U", "researchdesk", "-d", "researchdesk", "-v", "ON_ERROR_STOP=1", "-At", "-c", sql).redirectErrorStream(true).start();
         String output=new String(process.getInputStream().readAllBytes());
         assertThat(process.waitFor()).as("fixture SQL: " + output).isZero(); return output.strip();
     }

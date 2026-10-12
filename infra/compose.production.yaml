@@ -1,0 +1,27 @@
+# Use together with compose.yaml, behind the TLS ingress described in docs/deployment.md.
+# Required values fail closed; .env.example is NOT a production secret store.
+services:
+  postgres:
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set a unique PostgreSQL admin password}
+      BUSINESS_DATABASE_PASSWORD: ${BUSINESS_DATABASE_PASSWORD:?Set a unique business DB password}
+      RETRIEVAL_DATABASE_PASSWORD: ${RETRIEVAL_DATABASE_PASSWORD:?Set a unique retrieval DB password}
+  minio:
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?Set storage admin username}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?Set storage admin password}
+  api:
+    environment:
+      SESSION_COOKIE_SECURE: 'true'
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:?Set a random internal service token}
+      STORAGE_ACCESS_KEY: ${STORAGE_ACCESS_KEY:?Provision restricted ResearchDesk bucket credentials}
+      STORAGE_SECRET_KEY: ${STORAGE_SECRET_KEY:?Provision restricted ResearchDesk bucket credentials}
+      DATABASE_PASSWORD: ${BUSINESS_DATABASE_PASSWORD:?Set business DB password}
+  ai:
+    environment:
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:?Set a random internal service token}
+      STORAGE_ACCESS_KEY: ${STORAGE_ACCESS_KEY:?Provision restricted ResearchDesk bucket credentials}
+      STORAGE_SECRET_KEY: ${STORAGE_SECRET_KEY:?Provision restricted ResearchDesk bucket credentials}
+  migrate:
+    environment:
+      DATABASE_PASSWORD: ${POSTGRES_PASSWORD:?Set PostgreSQL admin password}

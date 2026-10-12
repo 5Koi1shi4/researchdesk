@@ -1,0 +1,12 @@
+# Disposable real-server expiry fixture; no volume or host port, never production settings.
+services:
+  minio-multipart-check:
+    image: researchdesk-delivery-minio:2025-10-15-fixed
+    profiles: [multipart-check]
+    command: [server, /data]
+    environment:
+      MINIO_ROOT_USER: multipart-test
+      MINIO_ROOT_PASSWORD: multipart-test-only-password
+      MINIO_BROWSER: 'off'
+      MINIO_API_STALE_UPLOADS_EXPIRY: 8s
+      MINIO_API_STALE_UPLOADS_CLEANUP_INTERVAL: 1s

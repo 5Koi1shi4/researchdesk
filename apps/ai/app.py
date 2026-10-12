@@ -30,6 +30,7 @@ def ready():
         with psycopg.connect(
             os.getenv("DATABASE_URL", "postgresql://researchdesk:researchdesk-dev-only@localhost:15432/researchdesk"),
             connect_timeout=2,
+            options="-c statement_timeout=2000",
         ) as connection:
             connection.execute("SELECT 1").fetchone()
         with redis.Redis.from_url(

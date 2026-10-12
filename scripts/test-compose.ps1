@@ -1,8 +1,11 @@
-param([string]$ApiUrl = 'http://localhost:18080')
+param([string]$Project='researchdesk-delivery',[int]$Port=18085)
+. "$PSScriptRoot/runtime.ps1"
+Initialize-Runtime -Project $Project -Port $Port
+$ApiUrl=$env:ACCEPTANCE_URL
 $ErrorActionPreference = 'Stop'
 $compose = Join-Path (Split-Path $PSScriptRoot -Parent) 'infra/compose.yaml'
 function Invoke-Compose([string[]]$ComposeArgs) {
-    & docker compose -f $compose @ComposeArgs
+    Invoke-DeliveryCompose @ComposeArgs
     if ($LASTEXITCODE -ne 0) { throw "Docker failed: $ComposeArgs" }
 }
 function Test-Ai([int]$Expected) {

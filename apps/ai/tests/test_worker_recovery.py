@@ -1,3 +1,5 @@
+import os
+import re
 import importlib.util
 import json
 import subprocess
@@ -11,10 +13,37 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[3]
 
 
+def compose_command(*arguments):
+    project = os.environ.get('COMPOSE_PROJECT_NAME', '')
+    if not re.fullmatch(r'researchdesk-(delivery|test-[a-z0-9-]+)', project):
+        raise ValueError('Recovery requires an explicit isolated Compose project')
+    base = os.environ.get('ACCEPTANCE_URL', 'http://127.0.0.1:18085')
+    target = urllib.parse.urlsplit(base)
+    if target.port in range(18080,18085):
+        raise ValueError('Recovery refuses shared ports 18080-18084')
+    if project != 'researchdesk-delivery' and target.port == 18085:
+        raise ValueError('Recovery requires an isolated test port')
+    if target.port is None or not 1024 <= target.port <= 65535:
+        raise ValueError('Recovery requires an isolated explicit port')
+    if target.hostname not in ('localhost', '127.0.0.1', '::1') or target.scheme != 'http' or target.path not in ('', '/') or target.query or target.fragment or target.username:
+        raise ValueError('Recovery requires an isolated loopback origin')
+    if project == 'researchdesk-delivery' and target.port != 18085:
+        raise ValueError('Delivery recovery requires isolated port 18085')
+    return ['docker', 'compose', '-p', project, '-f', str(ROOT/'infra/compose.yaml'), *arguments]
+
+
 def compose(*arguments):
-    result = subprocess.run(['docker','compose','-f',str(ROOT/'infra/compose.yaml'),*arguments],capture_output=True,text=True,timeout=30)
+    result = subprocess.run(compose_command(*arguments),capture_output=True,text=True,encoding="utf-8",timeout=30)
     assert result.returncode == 0, result.stdout + result.stderr
     return result.stdout.strip()
+
+
+def assert_live_target():
+    compose_command('ps')
+    port = urllib.parse.urlsplit(os.environ.get('ACCEPTANCE_URL', 'http://127.0.0.1:18085')).port
+    binding = compose('port', 'proxy', '8080')
+    if binding != f'127.0.0.1:{port}':
+        raise ValueError('HTTP target does not match isolated project proxy binding')
 
 
 def fixture_sql(query):
@@ -31,9 +60,10 @@ def until(read, expected, seconds=30):
 
 @pytest.mark.integration
 def test_real_worker_rebuilds_lost_queue_and_recovers_storage_outage():
+    assert_live_target()
     email='worker-'+str(uuid.uuid4())+'@researchdesk.test'
     project=None; stopped=False; storage_stopped=False
-    base='http://localhost:18080'
+    base=os.environ.get('ACCEPTANCE_URL', 'http://127.0.0.1:18085')
     def request(path, data=None, cookie=None, csrf=None, content_type='application/json'):
         headers={'Content-Type':content_type}
         if cookie: headers['Cookie']=cookie
@@ -53,7 +83,8 @@ def test_real_worker_rebuilds_lost_queue_and_recovers_storage_outage():
         compose('exec','-T','redis','redis-cli','DEL','researchdesk:ingestion')
         # Lose both the stream and consumer group, then let the durable Outbox rebuild delivery.
         compose('stop','minio');storage_stopped=True
-        compose('start','ai');stopped=False
+        compose('up','-d','--no-build','--no-deps','ai');stopped=False
+        assert json.loads(compose('ps','--all','--format','json','minio'))['State']=='exited', 'Fault test accidentally restarted storage'
         until(lambda:fixture_sql(f"SELECT retry_count>0 FROM business.tasks WHERE id='{task}'"),'t')
         assert fixture_sql(f"SELECT state FROM business.documents WHERE id='{upload['documentId']}'") == 'PROCESSING'
         compose('start','minio');storage_stopped=False
@@ -68,7 +99,7 @@ def test_real_worker_rebuilds_lost_queue_and_recovers_storage_outage():
         key=fixture_sql(f"SELECT object_key FROM business.document_versions WHERE id='{version}'")
         fixture_sql(f"INSERT INTO business.storage_cleanup(object_key,not_before) VALUES ('{key}',now())")
         until(lambda:fixture_sql(f"SELECT count(*) FROM business.storage_cleanup WHERE object_key='{key}'"),'0')
-        assert 'Recovery retains provenance.' in compose('exec','-T','minio','sh','-c','mc alias set local http://localhost:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null && mc cat local/researchdesk-documents/'+key)
+        assert 'Recovery retains provenance.' in compose('exec','-T','ai','python','-c',f'from worker.consumer import read_object; print(read_object({key!r}).decode())')
         # Future document deletion immediately invalidates callbacks and publication.
         fixture_sql(f"UPDATE business.documents SET state='DELETING' WHERE id='{upload['documentId']}'")
         assert fixture_sql(f"SELECT active||':'||published FROM retrieval.index_versions WHERE document_version_id='{version}'") == 'false:false'
@@ -77,8 +108,7 @@ def test_real_worker_rebuilds_lost_queue_and_recovers_storage_outage():
         if storage_stopped: compose('start','minio')
         if stopped: compose('start','ai')
         if project:
-            compose('exec','-T','minio','sh','-c','mc alias set local http://localhost:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null && mc rm --recursive --force local/researchdesk-documents/projects/'+project+'/')
-            fixture_sql(f"DELETE FROM retrieval.index_versions WHERE project_id='{project}'; DELETE FROM business.storage_cleanup WHERE object_key LIKE 'projects/{project}/%'")
+            fixture_sql(f"INSERT INTO business.storage_cleanup(object_key,not_before) SELECT object_key,now() FROM business.document_versions WHERE project_id='{project}' ON CONFLICT(object_key) DO NOTHING; DELETE FROM retrieval.index_versions WHERE project_id='{project}'")
         fixture_sql(f"DELETE FROM business.users WHERE email='{email}'; DELETE FROM business.auth_throttles WHERE key='email:{email}'")
 
 
@@ -161,7 +191,7 @@ def test_real_postgres_duplicate_partial_crash_and_stale_publication():
     assert importlib.util.find_spec('ingestion') is not None, 'real PostgreSQL indexer is missing'
     version, project, attempt = [str(uuid.uuid4()) for _ in range(3)]
     def sql(query):
-        result = subprocess.run(['docker','compose','-f',str(ROOT/'infra/compose.yaml'),'exec','-T','postgres','psql','-U','researchdesk','-d','researchdesk','-v','ON_ERROR_STOP=1','-At','-c',query],capture_output=True,text=True,timeout=15)
+        result = subprocess.run(compose_command('exec','-T','postgres','psql','-U','researchdesk','-d','researchdesk','-v','ON_ERROR_STOP=1','-At','-c',query),capture_output=True,text=True,encoding="utf-8",timeout=15)
         assert result.returncode == 0, result.stdout + result.stderr
         return result.stdout.strip()
     sql(f"INSERT INTO retrieval.index_versions(document_version_id,project_id,attempt_id,fence,active,lease_until) VALUES ('{version}','{project}','{attempt}',1,true,now()+interval '1 minute')")
@@ -191,7 +221,7 @@ print('PASS real duplicate/partial crash/stale publication')
 '''
     try:
         source = source.replace('FIXTURE', repr((version, project, attempt)))
-        result = subprocess.run(['docker','compose','-f',str(ROOT/'infra/compose.yaml'),'exec','-T','ai','python','-c',source], capture_output=True, text=True, timeout=30)
+        result = subprocess.run(compose_command('exec','-T','ai','python','-c',source), capture_output=True, text=True,encoding="utf-8", timeout=30)
         assert result.returncode == 0, result.stdout + result.stderr
         sql(f"DROP TRIGGER partial_{suffix} ON retrieval.chunks; DROP FUNCTION retrieval.partial_{suffix}()")
         recovery=f'''
@@ -215,3 +245,64 @@ print('PASS recovery, duplicate, stale publication and role boundary')
     finally:
         sql(f"DROP TRIGGER IF EXISTS partial_{suffix} ON retrieval.chunks; DROP FUNCTION IF EXISTS retrieval.partial_{suffix}()")
         sql(f"DELETE FROM retrieval.index_versions WHERE document_version_id='{version}'")
+
+@pytest.mark.integration
+def test_sigkill_running_worker_and_redis_outage_preserve_durable_tasks():
+    """Kill an actual worker blocked during index write, then recover via the lease."""
+    # Validate the project before creating users or invoking any disruptive command.
+    assert_live_target()
+    email = 'recovery-' + str(uuid.uuid4()) + '@researchdesk.test'
+    base = os.environ.get('ACCEPTANCE_URL', 'http://127.0.0.1:18085')
+    project = None
+    redis_stopped = False
+    worker_killed = False
+    lock_process = None
+    lock_name = 'recovery_' + uuid.uuid4().hex
+    def request(path, data=None, cookie=None, csrf=None, content_type='application/json'):
+        headers = {'Content-Type': content_type}
+        if cookie: headers['Cookie'] = cookie
+        if csrf: headers['X-CSRF-Token'] = csrf
+        with urllib.request.urlopen(urllib.request.Request(base + path, data=data, headers=headers), timeout=20) as response:
+            return json.loads(response.read()), response.headers
+    def upload(text):
+        boundary = 'recovery-' + uuid.uuid4().hex
+        body = ('--' + boundary + '\r\nContent-Disposition: form-data; name="file"; filename="recovery.md"\r\nContent-Type: text/markdown\r\n\r\n# Recovery\n\n' + text + '\r\n--' + boundary + '--\r\n').encode()
+        return request('/api/projects/' + project + '/documents', body, cookie, csrf, 'multipart/form-data; boundary=' + boundary)[0]
+    def release_lock():
+        fixture_sql("SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE application_name='" + lock_name + "' AND pid<>pg_backend_pid()")
+        if lock_process: lock_process.communicate(timeout=10)
+    try:
+        session, headers = request('/api/auth/register', json.dumps({'email': email, 'password': 'RecoveryFixturePassword9!'}).encode())
+        cookie = headers['Set-Cookie'].split(';')[0]
+        csrf = session['csrfToken']
+        project = request('/api/projects', b'{"name":"Recovery acceptance"}', cookie, csrf)[0]['id']
+        lock_process = subprocess.Popen(compose_command('exec', '-T', '-e', 'PGAPPNAME=' + lock_name, 'postgres', 'psql', '-U', 'researchdesk', '-d', 'researchdesk', '-v', 'ON_ERROR_STOP=1', '-c', "BEGIN; LOCK retrieval.chunks IN ACCESS EXCLUSIVE MODE; SELECT pg_sleep(60); ROLLBACK"), stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        until(lambda: fixture_sql("SELECT count(*) FROM pg_stat_activity WHERE application_name='" + lock_name + "' AND wait_event='PgSleep'"), '1')
+        first = upload('A killed worker must never publish a partial index.')
+        task = first['taskId']
+        until(lambda: fixture_sql(f"SELECT state FROM business.tasks WHERE id='{task}'"), 'RUNNING')
+        assert fixture_sql(f"SELECT state FROM business.documents WHERE id='{first['documentId']}'") == 'PROCESSING'
+        compose('kill', '-s', 'SIGKILL', 'ai')
+        worker_killed = True
+        release_lock()
+        compose('start', 'ai')
+        worker_killed = False
+        until(lambda: fixture_sql(f"SELECT state FROM business.tasks WHERE id='{task}'"), 'SUCCEEDED', 90)
+        assert int(fixture_sql(f"SELECT fence FROM business.tasks WHERE id='{task}'")) >= 2
+        assert fixture_sql(f"SELECT published||':'||chunk_count FROM retrieval.index_versions WHERE document_version_id='{first['versionId']}'") == 'true:2'
+        compose('stop', 'redis')
+        redis_stopped = True
+        second = upload('Redis interruption must retain the PostgreSQL task and outbox.')
+        task = second['taskId']
+        assert fixture_sql(f"SELECT t.state||':'||(o.published_at IS NULL) FROM business.tasks t JOIN business.outbox o ON o.task_id=t.id WHERE t.id='{task}'") == 'QUEUED:true'
+        compose('start', 'redis')
+        redis_stopped = False
+        until(lambda: fixture_sql(f"SELECT state FROM business.tasks WHERE id='{task}'"), 'SUCCEEDED', 60)
+    finally:
+        if lock_process and lock_process.poll() is None: release_lock()
+        if worker_killed: compose('start', 'ai')
+        if redis_stopped: compose('start', 'redis')
+        if project:
+            # Use the application's durable cleanup after removing only this fixture.
+            fixture_sql(f"INSERT INTO business.storage_cleanup(object_key,not_before) SELECT object_key,now() FROM business.document_versions WHERE project_id='{project}' ON CONFLICT(object_key) DO NOTHING; DELETE FROM retrieval.index_versions WHERE project_id='{project}'")
+        fixture_sql(f"DELETE FROM business.users WHERE email='{email}'; DELETE FROM business.auth_throttles WHERE key='email:{email}'")

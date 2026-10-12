@@ -1,0 +1,12 @@
+{
+  "status": "PASS",
+  "verified": [
+    "trusted test TLS certificate",
+    "Secure HttpOnly SameSite cookie",
+    "CSRF denial",
+    "cross-origin denial",
+    "same-origin write",
+    "edge/API/error requestId correlation",
+    "sensitive query/header/body excluded from logs"
+  ]
+}

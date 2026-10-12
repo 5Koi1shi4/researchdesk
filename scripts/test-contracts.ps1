@@ -1,3 +1,5 @@
+. "$PSScriptRoot/runtime.ps1"
+$script:DeliveryRoot=Split-Path $PSScriptRoot -Parent
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
 $outputs = @('apps/web/src/generated/contracts.ts', 'apps/ai/generated/contracts.py')
@@ -9,7 +11,7 @@ foreach ($file in $outputs) {
 }
 Push-Location $root
 try {
-    & apps/ai/.venv/Scripts/python.exe -m pytest apps/ai/tests/test_contracts.py
+    & (Get-AiPython) -m pytest apps/ai/tests/test_contracts.py
     if ($LASTEXITCODE -ne 0) { throw 'Python contracts failed' }
     Push-Location apps/web
     try {
