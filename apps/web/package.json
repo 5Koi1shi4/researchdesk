@@ -3,13 +3,28 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "engines": {"node": "^20.19.0 || >=22.12.0"},
+  "engines": {
+    "node": "^20.19.0 || >=22.12.0"
+  },
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "tsc --noEmit && vite build",
     "generate:contracts": "openapi-typescript ../../contracts/openapi.json -o src/generated/contracts.ts",
-    "test:contracts": "tsc --noEmit -p tsconfig.contracts.json"
+    "test:contracts": "tsc --noEmit -p tsconfig.contracts.json",
+    "test": "vitest run"
   },
-  "dependencies": {"react": "19.2.4", "react-dom": "19.2.4"},
-  "devDependencies": {"vite": "7.3.7", "typescript": "5.9.3", "@types/react": "19.2.14", "@types/react-dom": "19.2.3", "openapi-typescript": "7.13.0"}
+  "dependencies": {
+    "react": "19.2.4",
+    "react-dom": "19.2.4"
+  },
+  "devDependencies": {
+    "@testing-library/react": "16.3.3",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "jsdom": "26.1.0",
+    "openapi-typescript": "7.13.0",
+    "typescript": "5.9.3",
+    "vite": "7.3.7",
+    "vitest": "4.1.11"
+  }
 }
