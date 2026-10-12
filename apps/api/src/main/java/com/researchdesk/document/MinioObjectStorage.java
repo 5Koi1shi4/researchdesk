@@ -26,6 +26,13 @@ public class MinioObjectStorage implements ObjectStorage {
   try {ensureBucket();client.uploadObject(UploadObjectArgs.builder().bucket(bucket).object(key).filename(file.toString()).contentType(mediaType).build());}
   catch(Exception e){throw new ApiFailure(503,"STORAGE_UNAVAILABLE","资料存储暂时不可用，请稍后重新上传。");}
  }
+ public byte[] read(String key) {
+  try(var input=client.getObject(GetObjectArgs.builder().bucket(bucket).object(key).build())) {
+   byte[] bytes=input.readNBytes(20971521);
+   if(bytes.length>20971520)throw new IllegalStateException("Stored source exceeds limit");
+   return bytes;
+  }catch(Exception e){throw new ApiFailure(503,"STORAGE_UNAVAILABLE","资料存储暂时不可用，请稍后重试。");}
+ }
  public void delete(String key) {
   try {client.removeObject(RemoveObjectArgs.builder().bucket(bucket).object(key).build());}
   catch(Exception e){throw new ApiFailure(503,"STORAGE_UNAVAILABLE","资料存储暂时不可用，请稍后重试。");}

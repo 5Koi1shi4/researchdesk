@@ -72,3 +72,32 @@ it('keeps upload rejection visible through successful processing polls until a n
  fireEvent.change(screen.getByLabelText('资料文件'),{target:{files:[new File(['# 修正资料'],'修正资料.md')]}});
  expect(screen.queryByRole('alert')).toBeNull();
 });
+it('confirms deletion, revokes preview and refreshes the server state',async()=>{
+ let deleted=false;
+ vi.stubGlobal('fetch',vi.fn(async(path:string,options:RequestInit)=>{
+  if(options.method==='DELETE'){expect(path).toBe('/api/documents/doc-1');expect(new Headers(options.headers).get('X-CSRF-Token')).toBe('csrf-1');deleted=true;return response({documentId:'doc-1',state:'DELETING'},202);}
+  if(path.endsWith('/source-info'))return response({documentId:'doc-1',documentVersionId:'v-1',title:doc.title,mediaType:'text/markdown',pageCount:null,availability:'AVAILABLE'});
+  if(path.endsWith('/source'))return new Response('Original private source');
+  return response([{...doc,state:deleted?'DELETING':'READY'}]);
+ }));
+ render(<DocumentPage project={project} session={session}/>);
+ fireEvent.click(await screen.findByRole('button',{name:'预览原文'}));await screen.findByText('Original private source');
+ fireEvent.click(screen.getByRole('button',{name:'删除资料'}));
+ expect(screen.getByText(/历史回答正文仍会保留/)).toBeTruthy();expect(deleted).toBe(false);
+ fireEvent.click(screen.getByRole('button',{name:'确认删除'}));
+ await screen.findByText('正在删除');expect(screen.queryByText('Original private source')).toBeNull();expect(screen.queryByRole('button',{name:'预览原文'})).toBeNull();
+});
+it('cancels deletion without sending a mutation',async()=>{
+ const fetch=vi.fn(async()=>response([{...doc,state:'READY'}]));vi.stubGlobal('fetch',fetch);
+ render(<DocumentPage project={project} session={session}/>);
+ fireEvent.click(await screen.findByRole('button',{name:'删除资料'}));fireEvent.click(screen.getByRole('button',{name:'取消删除'}));
+ expect(screen.queryByRole('button',{name:'确认删除'})).toBeNull();expect(fetch.mock.calls.length).toBe(1);
+});
+it('moves focus into preview so immediate Escape closes it and restores the opener',async()=>{
+ vi.stubGlobal('fetch',vi.fn(async(path:string)=>path.endsWith('/source-info')?response({documentId:'doc-1',documentVersionId:'v-1',title:doc.title,mediaType:'text/markdown',pageCount:null,availability:'AVAILABLE'}):path.endsWith('/source')?new Response('Keyboard source'):response([{...doc,state:'READY'}])));
+ render(<DocumentPage project={project} session={session}/>);
+ const opener=await screen.findByRole('button',{name:'预览原文'});opener.focus();fireEvent.click(opener);
+ const close=screen.getByRole('button',{name:'关闭原文'});expect(document.activeElement).toBe(close);
+ fireEvent.keyDown(document.activeElement!,{key:'Escape'});
+ expect(screen.queryByRole('region',{name:'原文预览'})).toBeNull();expect(document.activeElement).toBe(opener);
+});
