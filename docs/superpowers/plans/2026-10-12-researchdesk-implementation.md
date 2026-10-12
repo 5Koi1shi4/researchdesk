@@ -90,11 +90,11 @@ type GenerationRequest = {
 
 **Interfaces:** `/api/auth/register|login|logout|session`；`POST/GET /api/projects`、`GET /api/projects/{id}`。登录返回 HttpOnly 会话 cookie；写请求要求 CSRF token。
 
-- [ ] 加载数据库技能并编写失败用例：用户 A 创建项目后，B 和不存在 ID 均得到同构 404；没有 CSRF 的有效会话写请求得到 403；登出后读取得到 401。
-- [ ] 运行 `./scripts/test-api.ps1 -Test ProjectOwnershipIT -Integration`，确认失败发生于授权行为而非环境。
-- [ ] 实现邮箱形式用户名、成熟密码哈希、会话轮换、过期与撤销。查询必须同时限定资源 ID 和会话用户，使用类似 `findByIdAndOwnerId(projectId, principal.userId())` 的仓储契约；不存在则统一 404。
-- [ ] 实现注册登录与项目页面，明确无邮箱验证/密码找回；前端收到 401 清除页面私有数据并转登录。
-- [ ] 重跑集成测试并在浏览器完成注册、登录、创建、登出；提交 `feat: add sessions and private research projects`。
+- [x] 加载数据库技能并编写失败用例：用户 A 创建项目后，B 和不存在 ID 均得到同构 404；没有 CSRF 的有效会话写请求得到 403；登出后读取得到 401。
+- [x] 运行 `./scripts/test-api.ps1 -Test ProjectOwnershipIT -Integration`，确认失败发生于授权行为而非环境。
+- [x] 实现邮箱形式用户名、成熟密码哈希、会话轮换、过期与撤销。查询必须同时限定资源 ID 和会话用户，使用类似 `findByIdAndOwnerId(projectId, principal.userId())` 的仓储契约；不存在则统一 404。
+- [x] 实现注册登录与项目页面，明确无邮箱验证/密码找回；前端收到 401 清除页面私有数据并转登录。
+- [x] 重跑集成测试并在浏览器完成注册、登录、创建、登出；提交 `feat: add sessions and private research projects`。
 
 ### Task 3：文件上传、配额与资料列表
 
