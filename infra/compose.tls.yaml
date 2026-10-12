@@ -1,0 +1,9 @@
+# Requires Docker Compose >=2.24.4 for !override. TLS terminates in this proxy,
+# so Host/Origin and X-Forwarded-Proto come from the same trusted request.
+services:
+  proxy:
+    ports: !override
+      - '127.0.0.1:${RESEARCHDESK_TLS_PORT:-18485}:8443'
+    volumes: !override
+      - ./proxy.tls.conf:/etc/nginx/conf.d/default.conf:ro
+      - ${TLS_CERT_DIRECTORY:?Set directory with fullchain.pem and privkey.pem}:/run/tls:ro

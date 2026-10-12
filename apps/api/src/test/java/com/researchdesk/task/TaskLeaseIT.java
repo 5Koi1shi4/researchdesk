@@ -9,7 +9,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class TaskLeaseIT {
  String compose=Path.of(System.getProperty("user.dir"),"../../infra/compose.yaml").normalize().toString();
  String run(String service,String... command) throws Exception {
-  var args=new java.util.ArrayList<String>(java.util.List.of("docker","compose","-f",compose,"exec","-T",service));args.addAll(java.util.List.of(command));
+  var args=new java.util.ArrayList<String>(java.util.List.of("docker","compose","-p",com.researchdesk.ComposeFixture.project(),"-f",compose,"exec","-T",service));args.addAll(java.util.List.of(command));
   var p=new ProcessBuilder(args).redirectErrorStream(true).start();String out=new String(p.getInputStream().readAllBytes(),StandardCharsets.UTF_8);assertThat(p.waitFor()).as(out).isZero();return out.strip();
  }
  String sql(String s)throws Exception{return run("postgres","psql","-U","researchdesk","-d","researchdesk","-v","ON_ERROR_STOP=1","-At","-c",s);}

@@ -40,7 +40,7 @@ public class DocumentService {
      if(db.queryForList("SELECT id FROM business.projects WHERE id=? AND owner_id=? FOR UPDATE",project,owner).isEmpty())throw new ApiFailure(404,"PROJECT_NOT_FOUND","项目不存在。");
      var existing=db.query("SELECT d.id,v.id,t.id,d.state FROM business.documents d JOIN business.document_versions v ON v.document_id=d.id JOIN business.tasks t ON t.document_version_id=v.id WHERE d.project_id=? AND d.content_sha256=?",(r,i)->new DocumentUpload(r.getString(1),r.getString(2),r.getString(3),DocumentState.valueOf(r.getString(4))),project,valid.digest());
      if(!existing.isEmpty())return new Accepted(existing.get(0),true);
-     if(db.queryForObject("SELECT count(*) FROM business.documents WHERE project_id=? AND state<>'DELETED'",Integer.class,project)>=quota)throw new ApiFailure(409,"DOCUMENT_QUOTA","项目资料数量已达上限（最多 50 份），请使用其他项目。");
+     if(db.queryForObject("SELECT count(*) FROM business.documents WHERE project_id=? AND state<>'DELETED'",Integer.class,project)>=quota)throw new ApiFailure(409,"DOCUMENT_QUOTA","项目资料数量已达上限（最多 "+quota+" 份），请使用其他项目。");
      db.update("INSERT INTO business.documents(id,project_id,title,content_sha256,state) VALUES (?,?,?,?,'PROCESSING')",document,project,valid.title(),valid.digest());
      db.update("INSERT INTO business.document_versions(id,document_id,project_id,object_key,media_type,size_bytes,page_count,parser_version) VALUES (?,?,?,?,?,?,?,'pypdf-6.12.2-markdown-v1')",version,document,project,key,valid.mediaType(),valid.size(),valid.pages());
      db.update("INSERT INTO business.tasks(id,project_id,document_version_id,attempt_id,state) VALUES (?,?,?,?,'QUEUED')",task,project,version,attempt);

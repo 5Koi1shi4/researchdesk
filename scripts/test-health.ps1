@@ -1,4 +1,4 @@
-param([string]$ApiUrl = 'http://localhost:18080', [string]$AiUrl = '', [switch]$Unavailable)
+param([string]$ApiUrl = 'http://127.0.0.1:18085', [string]$AiUrl = '', [switch]$Unavailable)
 $ErrorActionPreference = 'Stop'
 $health = Invoke-RestMethod "$ApiUrl/api/health" -TimeoutSec 10
 if ($health.status -ne 'UP') { throw 'API liveness must be UP' }

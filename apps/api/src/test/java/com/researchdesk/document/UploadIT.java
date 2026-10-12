@@ -16,12 +16,12 @@ import org.apache.pdfbox.pdmodel.font.*;
 class UploadIT {
     static final ObjectMapper JSON=new ObjectMapper();
     final HttpClient http=HttpClient.newBuilder().connectTimeout(java.time.Duration.ofSeconds(5)).build();
-    final String base=System.getenv().getOrDefault("ACCEPTANCE_URL","http://localhost:18080");
+    final String base=com.researchdesk.ComposeFixture.baseUrl();
     final List<String> emails=new ArrayList<>();
     record Session(String cookie,String csrf) {}
     record Result(int status,JsonNode body) {}
     String sql(String query) throws Exception {
-        var process=new ProcessBuilder("docker","compose","-f",Path.of(System.getProperty("user.dir"),"../../infra/compose.yaml").normalize().toString(),"exec","-T","postgres","psql","-U","researchdesk","-d","researchdesk","-v","ON_ERROR_STOP=1","-At","-c",query).redirectErrorStream(true).start();
+        var process=new ProcessBuilder("docker","compose","-p",com.researchdesk.ComposeFixture.project(),"-f",Path.of(System.getProperty("user.dir"),"../../infra/compose.yaml").normalize().toString(),"exec","-T","postgres","psql","-U","researchdesk","-d","researchdesk","-v","ON_ERROR_STOP=1","-At","-c",query).redirectErrorStream(true).start();
         String output=new String(process.getInputStream().readAllBytes(),StandardCharsets.UTF_8);
         assertThat(process.waitFor()).as(output).isZero(); return output.strip();
     }
@@ -53,18 +53,23 @@ class UploadIT {
         }
     }
     void error(Result r,int status,String code) { assertThat(r.status()).isEqualTo(status);assertThat(r.body().path("code").asText()).isEqualTo(code);assertThat(r.body().get("requestId").asText()).isNotBlank(); }
-    String minio(String command) throws Exception {
-        var process=new ProcessBuilder("docker","compose","-f",Path.of(System.getProperty("user.dir"),"../../infra/compose.yaml").normalize().toString(),"exec","-T","minio","sh","-c","mc alias set local http://localhost:9000 \"$MINIO_ROOT_USER\" \"$MINIO_ROOT_PASSWORD\" >/dev/null && "+command).redirectErrorStream(true).start();
-        String output=new String(process.getInputStream().readAllBytes(),StandardCharsets.UTF_8);assertThat(process.waitFor()).as(output).isZero();return output.strip();
+    String objects(String operation,String key) throws Exception {
+        var process=new ProcessBuilder("docker","compose","-p",com.researchdesk.ComposeFixture.project(),"-f",com.researchdesk.ComposeFixture.file(),"exec","-T","ai","python","-",operation,key).redirectErrorStream(true).start();
+        try(var input=UploadIT.class.getResourceAsStream("/s3_fixture.py")) {
+            input.transferTo(process.getOutputStream());
+        }
+        process.getOutputStream().close();
+        String output=new String(process.getInputStream().readAllBytes(),StandardCharsets.UTF_8);
+        assertThat(process.waitFor()).as(output).isZero();return output.strip();
     }
     void storageService(String action) throws Exception {
-        var process=new ProcessBuilder("docker","compose","-f",Path.of(System.getProperty("user.dir"),"../../infra/compose.yaml").normalize().toString(),action,"minio").redirectErrorStream(true).start();String out=new String(process.getInputStream().readAllBytes());assertThat(process.waitFor()).as(out).isZero();
+        var process=new ProcessBuilder("docker","compose","-p",com.researchdesk.ComposeFixture.project(),"-f",Path.of(System.getProperty("user.dir"),"../../infra/compose.yaml").normalize().toString(),action,"minio").redirectErrorStream(true).start();String out=new String(process.getInputStream().readAllBytes());assertThat(process.waitFor()).as(out).isZero();
     }
     @AfterEach void cleanup() throws Exception {
         for(String email:emails) {
             sql("DELETE FROM retrieval.index_versions WHERE project_id IN (SELECT id FROM business.projects WHERE owner_id=(SELECT id FROM business.users WHERE email='"+email+"'))");
             String projects=sql("SELECT id FROM business.projects WHERE owner_id=(SELECT id FROM business.users WHERE email='"+email+"')");
-            for(String id:projects.split("\\R"))if(!id.isBlank()){minio("mc rm --recursive --force local/researchdesk-documents/projects/"+id+"/");sql("DELETE FROM business.storage_cleanup WHERE object_key LIKE 'projects/"+id+"/%'");}
+            for(String id:projects.split("\\R"))if(!id.isBlank())sql("INSERT INTO business.storage_cleanup(object_key) SELECT object_key FROM business.document_versions WHERE project_id='"+id+"' ON CONFLICT DO NOTHING");
             sql("DELETE FROM business.users WHERE email='"+email+"'; DELETE FROM business.auth_throttles WHERE key='email:"+email+"';");
         }
     }
@@ -85,7 +90,7 @@ class UploadIT {
             assertThat(request("GET","/api/projects/"+p+"/documents",null,s).body()).isEmpty();
             assertThat(sql("SELECT count(*) FROM business.tasks WHERE project_id='"+p+"'")).isEqualTo("0");
             assertThat(sql("SELECT count(*) FROM business.storage_cleanup WHERE object_key LIKE 'projects/"+p+"/%'")).isEqualTo("0");
-            assertThat(minio("mc ls --recursive local/researchdesk-documents/projects/"+p+"/")).isEmpty();
+            assertThat(objects("list","projects/"+p+"/")).isEmpty();
         }finally{sql("DROP TRIGGER upload_it_reject_"+p.replace("-", "")+" ON business.outbox; DROP FUNCTION business.upload_it_reject_"+p.replace("-", "")+"()");}
     }
     @Test void rolledBackWrittenObjectRemainsInDurableCleanupQueueWhenMinioCompensationFails() throws Exception {
@@ -95,7 +100,7 @@ class UploadIT {
         try {
             var result=CompletableFuture.supplyAsync(()->{try{return upload(project,"orphan.md","# Durable orphan".getBytes(StandardCharsets.UTF_8),session);}catch(Exception e){throw new RuntimeException(e);}});
             long deadline=System.nanoTime()+java.time.Duration.ofSeconds(10).toNanos();
-            while(minio("mc ls --recursive local/researchdesk-documents/projects/"+project+"/").isEmpty()) {assertThat(System.nanoTime()).as("object written before rollback pause").isLessThan(deadline);Thread.sleep(50);}
+            while(objects("list","projects/"+project+"/").isEmpty()) {assertThat(System.nanoTime()).as("object written before rollback pause").isLessThan(deadline);Thread.sleep(50);}
             key=sql("SELECT object_key FROM business.storage_cleanup WHERE object_key LIKE 'projects/"+project+"/%'");assertThat(key).startsWith("projects/"+project+"/");
             storageService("pause");paused=true;
             error(result.get(30,TimeUnit.SECONDS),503,"UPLOAD_UNAVAILABLE");
@@ -103,7 +108,7 @@ class UploadIT {
             assertThat(sql("SELECT count(*) FROM business.tasks WHERE project_id='"+project+"'")).isEqualTo("0");
             assertThat(sql("SELECT count(*) FROM business.storage_cleanup WHERE object_key='"+key+"'")).isEqualTo("1");
         }finally{if(paused)storageService("unpause");sql("DROP TRIGGER upload_it_pause_"+suffix+" ON business.outbox; DROP FUNCTION business.upload_it_pause_"+suffix+"()");}
-        assertThat(minio("mc cat local/researchdesk-documents/"+key)).isEqualTo("# Durable orphan");
+        assertThat(objects("read",key)).isEqualTo("# Durable orphan");
     }
     @Test void exactTwentyMiBIsAcceptedAndLargeEdgeRequestsReturnJson() throws Exception {
         var s=register();String p=project(s);byte[] text=new byte[20*1024*1024];Arrays.fill(text,(byte)'a');
@@ -140,9 +145,9 @@ class UploadIT {
         assertThat(ra.body().get("documentId")).isEqualTo(rb.body().get("documentId"));assertThat(ra.body().get("taskId")).isEqualTo(rb.body().get("taskId"));assertThat(ra.body().get("state").asText()).isIn("PROCESSING","READY");
         assertThat(request("GET","/api/projects/"+p+"/documents",null,s).body()).hasSize(1);
         String key=sql("SELECT object_key FROM business.document_versions WHERE project_id='"+p+"'");
-        assertThat(minio("mc cat local/researchdesk-documents/"+key)).isEqualTo("# Same document");
+        assertThat(objects("read",key)).isEqualTo("# Same document");
         assertThat(sql("SELECT count(*) FROM business.storage_cleanup WHERE object_key LIKE 'projects/"+p+"/%'")).isEqualTo("0");
-        assertThat(minio("mc ls --recursive local/researchdesk-documents/projects/"+p+"/").lines().count()).isEqualTo(1);
+        assertThat(objects("list","projects/"+p+"/").lines().count()).isEqualTo(1);
         String t=ra.body().get("taskId").asText();
         assertThat(request("GET","/api/projects/"+p+"/tasks/"+t,null,s).body().get("state").asText()).isIn("QUEUED","RUNNING","SUCCEEDED");
         assertThat(sql("SELECT count(*) FROM business.outbox WHERE task_id='"+t+"'")).isEqualTo("1");

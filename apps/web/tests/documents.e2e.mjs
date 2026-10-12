@@ -7,12 +7,23 @@ import {fileURLToPath} from 'node:url';
 import path from 'node:path';
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../../..');
 const compose=path.join(root,'infra/compose.yaml');
+const project=process.env.COMPOSE_PROJECT_NAME;
+assert.match(project||'',/^researchdesk-(delivery|test-[a-z0-9-]+)$/,'Browser acceptance requires an isolated Compose project');
+const base=process.env.ACCEPTANCE_URL||'http://127.0.0.1:18085';
+const target=new URL(base);
+assert.ok(['localhost','127.0.0.1','[::1]'].includes(target.hostname)&&target.protocol==='http:'&&target.pathname==='/'&&!target.search&&!target.hash&&!target.username,'Require isolated loopback origin');
+assert.ok(![18080,18081,18082,18083,18084].includes(Number(target.port)),'Refusing shared application ports');
+if(project!=='researchdesk-delivery') assert.notEqual(target.port,'18085','Port18085 reserved for delivery');
+if(project==='researchdesk-delivery') assert.equal(target.port,'18085','Delivery requires port18085');
+const binding=spawnSync('docker',['compose','-p',project,'-f',compose,'port','proxy','8080'],{encoding:'utf8',timeout:15000});
+assert.equal(binding.status,0,binding.stderr);
+assert.equal(binding.stdout.trim(),'127.0.0.1:'+target.port,'HTTP target must match selected project binding');
 const output=path.join(root,'.cache/task3-browser/screenshots');
 await mkdir(output,{recursive:true});
 const email='documents-e2e-'+randomUUID()+'@researchdesk.test';
 const projectName='资料浏览器验收 '+randomUUID().slice(0,8);
 function sql(query) {
- const result=spawnSync('docker',['compose','-f',compose,'exec','-T','postgres','psql','-U','researchdesk','-d','researchdesk','-v','ON_ERROR_STOP=1','-At','-c',query],{encoding:'utf8',timeout:15000});
+ const result=spawnSync('docker',['compose','-p',project,'-f',compose,'exec','-T','postgres','psql','-U','researchdesk','-d','researchdesk','-v','ON_ERROR_STOP=1','-At','-c',query],{encoding:'utf8',timeout:15000});
  assert.equal(result.status,0,result.stderr);return result.stdout.trim();
 }
 const browser=await chromium.launch({channel:process.env.E2E_BROWSER_CHANNEL||'msedge',headless:true,timeout:15000});
@@ -20,7 +31,7 @@ let projectId;
 try {
  const page=await browser.newPage({viewport:{width:1360,height:1000}});
  page.setDefaultTimeout(10000);
- await page.goto(process.env.ACCEPTANCE_URL||'http://localhost:18080');
+ await page.goto(base);
  await page.getByRole('button',{name:'没有账号？创建账号'}).click();
  await page.getByLabel('邮箱',{exact:true}).fill(email);
  await page.getByLabel('密码',{exact:true}).fill('BrowserFixturePassword9!');
@@ -53,7 +64,7 @@ try {
  await page.getByRole('button',{name:'刷新资料状态',exact:true}).click();
  await page.getByRole('button',{name:'重试处理',exact:true}).waitFor();
  const taskId=sql("SELECT id FROM business.tasks WHERE project_id='"+projectId+"'");
- const rejected=await page.request.post((process.env.ACCEPTANCE_URL||'http://localhost:18080')+'/api/projects/'+projectId+'/tasks/'+taskId+'/retry',{data:{}});
+ const rejected=await page.request.post((base)+'/api/projects/'+projectId+'/tasks/'+taskId+'/retry',{data:{}});
  assert.equal(rejected.status(),403,'retry requires csrf');
  await page.getByRole('button',{name:'重试处理',exact:true}).click();
  await page.getByText('可用于研究',{exact:true}).waitFor({timeout:30000});
@@ -75,9 +86,7 @@ try {
  await browser.close();
  if(projectId) {
   sql("DELETE FROM retrieval.index_versions WHERE project_id='"+projectId+"'");
-  const cleanup=spawnSync('docker',['compose','-f',compose,'exec','-T','minio','sh','-c','mc alias set local http://localhost:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null && mc rm --recursive --force local/researchdesk-documents/projects/'+projectId+'/'],{encoding:'utf8',timeout:15000});
-  assert.equal(cleanup.status,0,cleanup.stderr);
-  sql("DELETE FROM business.storage_cleanup WHERE object_key LIKE 'projects/"+projectId+"/%'");
+  sql("INSERT INTO business.storage_cleanup(object_key,not_before) SELECT object_key,now() FROM business.document_versions WHERE project_id='"+projectId+"' ON CONFLICT(object_key) DO NOTHING");
  }
  sql("DELETE FROM business.users WHERE email='"+email+"'; DELETE FROM business.auth_throttles WHERE key='email:"+email+"'");
 }

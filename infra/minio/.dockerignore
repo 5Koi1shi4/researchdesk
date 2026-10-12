@@ -1,0 +1,5 @@
+*
+!Dockerfile
+!source.tar.gz
+!gomod-cache/
+!gomod-cache/**

@@ -13,7 +13,9 @@ class UploadLimitsIT {
   fixture.error(fixture.upload(project,"three.pdf",fixture.pdf(3,false,false),session),400,"PDF_PAGE_LIMIT");
   assertThat(fixture.upload(project,"one.md","# One".getBytes(StandardCharsets.UTF_8),session).status()).isEqualTo(201);
   assertThat(fixture.upload(project,"two.md","# Two".getBytes(StandardCharsets.UTF_8),session).status()).isEqualTo(201);
-  fixture.error(fixture.upload(project,"three.md","# Three".getBytes(StandardCharsets.UTF_8),session),409,"DOCUMENT_QUOTA");
+  var rejected=fixture.upload(project,"three.md","# Three".getBytes(StandardCharsets.UTF_8),session);
+  fixture.error(rejected,409,"DOCUMENT_QUOTA");
+  assertThat(rejected.body().path("message").asText()).contains("2").doesNotContain("50");
   assertThat(fixture.request("GET","/api/projects/"+project+"/documents",null,session).body()).hasSize(2);
  }
 }
