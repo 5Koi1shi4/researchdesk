@@ -11,7 +11,7 @@ import org.junit.jupiter.api.*;
 class ReportVersionIT {
   static final ObjectMapper JSON = new ObjectMapper();
   final HttpClient http = HttpClient.newHttpClient();
-  final String base = System.getenv().getOrDefault("ACCEPTANCE_URL", "http://localhost:18084");
+  final String base = com.researchdesk.ComposeFixture.baseUrl();
 
   record Session(String cookie, String csrf) {}
 
@@ -40,7 +40,7 @@ class ReportVersionIT {
                   "docker",
                   "compose",
                   "-p",
-                  "researchdesk-reports",
+                  com.researchdesk.ComposeFixture.project(),
                   "-f",
                   java.nio.file.Path.of(System.getProperty("user.dir"), "../../infra/compose.yaml")
                       .normalize()

@@ -1,0 +1,4 @@
+# Test-only loopback binding, applied only to researchdesk-test-integration.
+services:
+  postgres:
+    ports: ["127.0.0.1:15487:5432"]

@@ -10,9 +10,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 class DocumentDeletionIT {
  static final ObjectMapper JSON=new ObjectMapper();
  final HttpClient http=HttpClient.newHttpClient();
- final String base=System.getProperty("source.baseUrl","http://localhost:18081");
+ final String base=com.researchdesk.ComposeFixture.baseUrl();
  record Session(String cookie,String csrf) {}
- String sql(String query)throws Exception {var p=new ProcessBuilder("docker","compose","-p",System.getProperty("source.composeProject","researchdesk-sources"),"-f",Path.of(System.getProperty("user.dir"),"../../infra/compose.yaml").normalize().toString(),"exec","-T","postgres","psql","-U","researchdesk","-d","researchdesk","-v","ON_ERROR_STOP=1","-At","-c",query).redirectErrorStream(true).start();String out=new String(p.getInputStream().readAllBytes());assertThat(p.waitFor()).as(out).isZero();return out.strip();}
+ String sql(String query)throws Exception {var p=new ProcessBuilder("docker","compose","-p",com.researchdesk.ComposeFixture.project(),"-f",Path.of(System.getProperty("user.dir"),"../../infra/compose.yaml").normalize().toString(),"exec","-T","postgres","psql","-U","researchdesk","-d","researchdesk","-v","ON_ERROR_STOP=1","-At","-c",query).redirectErrorStream(true).start();String out=new String(p.getInputStream().readAllBytes());assertThat(p.waitFor()).as(out).isZero();return out.strip();}
  HttpResponse<String> request(String method,String path,String body,Session s)throws Exception {var b=HttpRequest.newBuilder(URI.create(base+path)).header("Content-Type","application/json");if(s!=null)b.header("Cookie",s.cookie()).header("X-CSRF-Token",s.csrf());return http.send(b.method(method,body==null?HttpRequest.BodyPublishers.noBody():HttpRequest.BodyPublishers.ofString(body)).build(),HttpResponse.BodyHandlers.ofString());}
  Session register()throws Exception {var r=request("POST","/api/auth/register","{\"email\":\"source-"+UUID.randomUUID()+"@researchdesk.test\",\"password\":\"CorrectHorseBattery9!\"}",null);assertThat(r.statusCode()).isEqualTo(201);return new Session(r.headers().firstValue("set-cookie").orElseThrow().split(";",2)[0],JSON.readTree(r.body()).get("csrfToken").asText());}
  JsonNode upload(Session s)throws Exception {String project=JSON.readTree(request("POST","/api/projects","{\"name\":\"Sources\"}",s).body()).get("id").asText();return upload(s,project); }
@@ -51,8 +51,9 @@ class DocumentDeletionIT {
   }finally{storage("start");Thread.sleep(3000);}
   long end=System.nanoTime()+40_000_000_000L;
   while(!sql("SELECT state FROM business.documents WHERE id='"+id+"'").equals("DELETED")){assertThat(System.nanoTime()).isLessThan(end);Thread.sleep(500);}
+  assertThat(request("POST","/api/projects/"+project+"/tasks/"+task+"/retry","{}",s).statusCode()).isEqualTo(409);
  }
- void storage(String action)throws Exception {var p=new ProcessBuilder("docker","compose","-p",System.getProperty("source.composeProject","researchdesk-sources"),"-f",Path.of(System.getProperty("user.dir"),"../../infra/compose.yaml").normalize().toString(),action,"minio").redirectErrorStream(true).start();String out=new String(p.getInputStream().readAllBytes());assertThat(p.waitFor()).as(out).isZero();} @Test void sameContentCanBeUploadedAgainWithoutRevivingOldCitation()throws Exception {
+ void storage(String action)throws Exception {var p=new ProcessBuilder("docker","compose","-p",com.researchdesk.ComposeFixture.project(),"-f",Path.of(System.getProperty("user.dir"),"../../infra/compose.yaml").normalize().toString(),action,"minio").redirectErrorStream(true).start();String out=new String(p.getInputStream().readAllBytes());assertThat(p.waitFor()).as(out).isZero();} @Test void sameContentCanBeUploadedAgainWithoutRevivingOldCitation()throws Exception {
   var s=register();var first=upload(s);String id=first.get("documentId").asText();String project=sql("SELECT project_id FROM business.documents WHERE id='"+id+"'");
   assertThat(request("DELETE","/api/documents/"+id,null,s).statusCode()).isEqualTo(202);
   var second=upload(s,project);assertThat(second.get("documentId").asText()).isNotEqualTo(id);

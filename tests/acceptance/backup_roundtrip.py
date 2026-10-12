@@ -6,12 +6,15 @@ from pathlib import Path
 import subprocess
 import time
 import urllib.request
+import urllib.parse
+import re
 import uuid
 
 ROOT = Path(__file__).resolve().parents[2]
-SOURCE = 'researchdesk-delivery'
-BASE = 'http://127.0.0.1:18085'
-RESTORE_PORT = 18086
+SOURCE = os.environ.get('COMPOSE_PROJECT_NAME', '')
+BASE = os.environ.get('ACCEPTANCE_URL', '')
+PORT = urllib.parse.urlsplit(BASE).port
+RESTORE_PORT = 18088
 
 
 def run(*args, timeout=180):
@@ -51,14 +54,16 @@ def until(action, expected, seconds=90):
 
 
 def main():
-    assert compose(SOURCE, 'port', 'proxy', '8080') == '127.0.0.1:18085', 'Source binding mismatch'
+    assert re.fullmatch(r'researchdesk-test-[a-z0-9-]+', SOURCE), 'Explicit test source required'
+    assert BASE == f'http://127.0.0.1:{PORT}' and PORT not in range(18080,18086)
+    assert compose(SOURCE, 'port', 'proxy', '8080') == f'127.0.0.1:{PORT}', 'Source binding mismatch'
     until(lambda: request(BASE, '/api/ready')[0]['status'], 'UP')
     label = 'drill-' + uuid.uuid4().hex[:12]
     target = 'researchdesk-test-delivery-restore-' + label
     email = label + '@researchdesk.test'
     password = 'BackupFixturePassword9!'
     os.environ['COMPOSE_PROJECT_NAME'] = SOURCE
-    os.environ['RESEARCHDESK_PORT'] = '18085'
+    os.environ['RESEARCHDESK_PORT'] = str(PORT)
     project = None
     restored = False
     try:
@@ -72,8 +77,19 @@ def main():
         upload = request(BASE, '/api/projects/'+project+'/documents', body, cookie, csrf, 'multipart/form-data; boundary='+boundary)[0]
         until(lambda: sql(SOURCE, f"SELECT state FROM business.tasks WHERE id='{upload['taskId']}'"), 'SUCCEEDED')
         key = sql(SOURCE, f"SELECT object_key FROM business.document_versions WHERE id='{upload['versionId']}'")
+        report = request(BASE, '/api/projects/'+project+'/reports', json.dumps({'title':'Recovery report','markdown':'# Historical report\n\nOriginal frozen evidence.'}).encode(), cookie, csrf)[0]['reportId']
+        request(BASE, '/api/reports/'+report+'/versions', json.dumps({'baseVersion':1,'markdown':'# Edited report\n\nSaved second version.'}).encode(), cookie, csrf)
+        exports = {}
+        for fmt in ('MARKDOWN','PDF'):
+            exp = request(BASE, '/api/reports/'+report+'/exports', json.dumps({'version':1,'format':fmt}).encode(), cookie, csrf)[0]['id']
+            path = '/api/reports/'+report+'/exports/'+exp
+            until(lambda: request(BASE,path,cookie=cookie)[0]['state'], 'SUCCEEDED')
+            with urllib.request.urlopen(urllib.request.Request(BASE+path+'/download', headers={'Cookie':cookie})) as response:
+                data=response.read()
+            assert (data.startswith(b'%PDF-') if fmt=='PDF' else b'Original frozen evidence.' in data)
+            exports[path]=hashlib.sha256(data).hexdigest()
         start = time.monotonic()
-        run('pwsh', '-NoProfile', '-File', str(ROOT/'scripts/backup.ps1'), '-Action', 'Backup', '-Name', label, timeout=300)
+        run('pwsh' , '-NoProfile', '-File', str(ROOT/'scripts/backup.ps1'), '-Action', 'Backup', '-Name', label, '-Project', SOURCE, '-Port', str(PORT), timeout=300)
         backup_seconds = time.monotonic()-start
         start = time.monotonic()
         run('pwsh', '-NoProfile', '-File', str(ROOT/'scripts/backup.ps1'), '-Action', 'Restore', '-Name', label, '-Project', target, '-Port', str(RESTORE_PORT), timeout=300)
@@ -89,16 +105,24 @@ def main():
         digest = compose(target, 'exec', '-T', 'ai', 'python', '-c', f'from worker.consumer import read_object; import hashlib; print(hashlib.sha256(read_object({key!r})).hexdigest())')
         assert digest == hashlib.sha256(content).hexdigest(), 'Restored source bytes differ'
         assert sql(target, f"SELECT published||':'||chunk_count FROM retrieval.index_versions WHERE document_version_id='{upload['versionId']}'") == 'true:2'
-        created = request(target_base, '/api/projects', b'{"name":"Post-restore write"}', restored_cookie, login['csrfToken'])[0]
+        versions = request(target_base, '/api/reports/'+report+'/versions', cookie=restored_cookie)[0]
+        assert len(versions)==2
+        assert request(target_base, '/api/reports/'+report+'/versions/1', cookie=restored_cookie)[0]['markdown'] == '# Historical report\n\nOriginal frozen evidence.'
+        assert request(target_base, '/api/reports/'+report+'/versions/2', cookie=restored_cookie)[0]['markdown'] == '# Edited report\n\nSaved second version.'
+        for path, digest in exports.items():
+            assert request(target_base,path,cookie=restored_cookie)[0]['state']=='SUCCEEDED'
+            with urllib.request.urlopen(urllib.request.Request(target_base+path+'/download', headers={'Cookie':restored_cookie})) as response:
+                assert hashlib.sha256(response.read()).hexdigest()==digest, 'Restored historical export differs'
+        created = request(target_base, '/api/projects' , b'{"name":"Post-restore write"}', restored_cookie, login['csrfToken'])[0]
         assert created['id'] != project
-        result = {'status':'PASS','scope':'foundation cold backup/restore','backup':label,'restoreProject':target,'backupSeconds':round(backup_seconds,2),'restoreToVerifiedSeconds':round(time.monotonic()-start,2),'verified':['existing login','READY document','exact original bytes SHA256','published index','new authenticated write'],'pending':['report versions and exports after integration']}
+        result = {'status':'PASS','scope':'integrated cold backup/restore','backup':label,'restoreProject':target,'backupSeconds':round(backup_seconds,2),'restoreToVerifiedSeconds':round(time.monotonic()-start,2),'verified':['existing login','READY document','exact original bytes SHA256','published index','new authenticated write','two immutable report versions','historical Markdown/PDF exact bytes'],'pending':[]}
         output=ROOT/'.cache'/f'{label}-result.json'
         output.write_text(json.dumps(result, indent=2), encoding='utf-8')
         print(json.dumps(result))
     finally:
         # Never remove volumes: leave the isolated recovered data for inspection.
         if restored: compose(target, 'stop')
-        os.environ['RESEARCHDESK_PORT'] = '18085'
+        os.environ['RESEARCHDESK_PORT'] = str(PORT)
         if project:
             sql(SOURCE, f"INSERT INTO business.storage_cleanup(object_key,not_before) SELECT object_key,now() FROM business.document_versions WHERE project_id='{project}' ON CONFLICT(object_key) DO NOTHING; DELETE FROM retrieval.index_versions WHERE project_id='{project}'")
         sql(SOURCE, f"DELETE FROM business.users WHERE email='{email}'; DELETE FROM business.auth_throttles WHERE key='email:{email}'")

@@ -25,7 +25,7 @@ try {
             if ($Phase -eq 'module') { & "$PSScriptRoot/test-api.ps1" -Test 'RunEventValidatorTest,RunStreamErrorTest,ContractsTest' } else { & "$PSScriptRoot/test-api.ps1" }
         }
         'http' {
-            if ((Invoke-WebRequest 'http://localhost:18083/api/ready' -TimeoutSec 5).StatusCode -ne 200) { throw 'Isolated generation API unavailable on18083.' }
+            if ((Invoke-WebRequest "$env:ACCEPTANCE_URL/api/ready" -TimeoutSec 5).StatusCode -ne 200) { throw 'Explicit isolated generation API unavailable.' }
             & "$PSScriptRoot/test-api.ps1" -Test 'GenerationScopeIT,RunRecoveryIT' -Integration
         }
         'race' {

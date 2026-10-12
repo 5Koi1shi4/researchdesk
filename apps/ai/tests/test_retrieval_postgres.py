@@ -11,9 +11,15 @@ pytestmark = pytest.mark.integration
 def db(monkeypatch):
     dsn = os.getenv('RETRIEVAL_TEST_ADMIN_URL')
     if not dsn:
-        pytest.skip('Set RETRIEVAL_TEST_ADMIN_URL to an isolated migrated PostgreSQL')
+        pytest.fail('Set RETRIEVAL_TEST_ADMIN_URL to an isolated migrated PostgreSQL')
     target=urlsplit(dsn)
-    assert target.hostname in ('127.0.0.1','localhost') and target.port==18082, 'retrieval tests require isolated loopback port 18082'
+    if os.getenv('COMPOSE_PROJECT_NAME') == 'researchdesk-test-integration':
+        from test_worker_recovery import assert_live_target, compose
+        assert_live_target()
+        assert target.hostname in ('127.0.0.1','localhost') and target.port == 15487
+        assert compose('port','postgres','5432') == '127.0.0.1:15487'
+    else:
+        assert target.hostname in ('127.0.0.1','localhost') and target.port==18082, 'retrieval tests require isolated loopback port 18082'
     monkeypatch.setenv('DATABASE_URL', dsn.replace('researchdesk:researchdesk-dev-only', 'researchdesk_retrieval:researchdesk-retrieval-dev-only'))
     with psycopg.connect(dsn, autocommit=True) as conn:
         user, project, other = [str(uuid.uuid4()) for _ in range(3)]

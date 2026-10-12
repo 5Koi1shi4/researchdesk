@@ -15,7 +15,7 @@ class ReportDraftIT {
     @org.springframework.context.annotation.Bean
     javax.sql.DataSource dataSource() {
       return new org.springframework.jdbc.datasource.DriverManagerDataSource(
-          "jdbc:postgresql://127.0.0.1:15484/researchdesk",
+          com.researchdesk.ComposeFixture.databaseUrl(),
           "researchdesk_business",
           "researchdesk-business-dev-only");
     }
@@ -59,7 +59,7 @@ class ReportDraftIT {
                 "docker",
                 "compose",
                 "-p",
-                "researchdesk-reports",
+                com.researchdesk.ComposeFixture.project(),
                 "-f",
                 java.nio.file.Path.of(System.getProperty("user.dir"), "../../infra/compose.yaml")
                     .normalize()

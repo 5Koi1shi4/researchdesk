@@ -11,9 +11,18 @@ function Initialize-Runtime {
  $env:RESEARCHDESK_PORT="$Port"
  $env:ACCEPTANCE_URL="http://127.0.0.1:$Port"
  $env:E2E_BASE_URL=$env:ACCEPTANCE_URL
+ $env:PYTHONUTF8='1'
+ $env:PYTHONPATH=Join-Path $script:DeliveryRoot 'apps/ai'
+ if($Project -eq 'researchdesk-test-integration' -and $Port -ne 18087){throw 'Integration must use port 18087'}
+ if($Project -eq 'researchdesk-test-integration'){
+  $env:RESEARCHDESK_TEST_DB_PORT='15487'
+  $env:RETRIEVAL_TEST_ADMIN_URL='postgresql://researchdesk:researchdesk-dev-only@127.0.0.1:15487/researchdesk'
+ }
 }
 function Invoke-DeliveryCompose {
- & docker compose -p $script:DeliveryProject --project-directory "$script:DeliveryRoot/infra" -f "$script:DeliveryRoot/infra/compose.yaml" @args
+ $files=@('-f',"$script:DeliveryRoot/infra/compose.yaml")
+ if($script:DeliveryProject -eq 'researchdesk-test-integration'){$files+=@('-f',"$script:DeliveryRoot/infra/compose.integration.yaml")}
+ & docker compose -p $script:DeliveryProject --project-directory "$script:DeliveryRoot/infra" @files @args
  if($LASTEXITCODE -ne 0){throw "Compose operation failed (exit $LASTEXITCODE)"}
 }
 function Assert-FullJourney {

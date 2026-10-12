@@ -20,3 +20,9 @@ $savedRoot=$script:DeliveryRoot
 $script:DeliveryRoot=Join-Path $savedRoot '.cache/missing-journey-fixture'
 try { Assert-Rejected { Assert-FullJourney } } finally { $script:DeliveryRoot=$savedRoot }
 Write-Host 'Runtime safety checks passed; missing full journey fails closed.'
+
+Initialize-Runtime -Project researchdesk-test-integration -Port 18087
+Invoke-DeliveryCompose ps --quiet
+if($env:RESEARCHDESK_TEST_DB_PORT -ne '15487' -or $env:ACCEPTANCE_URL -ne 'http://127.0.0.1:18087'){throw 'Integration fixture environment mismatch'}
+if(($script:Seen -join ' ') -notmatch 'compose.integration.yaml'){throw 'Integration database override missing'}
+Write-Host 'Integration project selects its private loopback database override.'

@@ -35,6 +35,18 @@ public final class ComposeFixture {
         catch (InterruptedException error) { Thread.currentThread().interrupt();throw new IllegalStateException("Proxy binding check interrupted",error); }
         return url.endsWith("/") ? url.substring(0,url.length()-1) : url;
     }
+    public static String databaseUrl() {
+        baseUrl();
+        String port=System.getenv("RESEARCHDESK_TEST_DB_PORT");
+        if (!project().equals("researchdesk-test-integration") || !"15487".equals(port))
+            throw new IllegalStateException("Explicit isolated test database port required");
+        try {
+            var p=new ProcessBuilder("docker","compose","-p",project(),"-f",file(),"port","postgres","5432").redirectErrorStream(true).start();
+            String actual=new String(p.getInputStream().readAllBytes(),StandardCharsets.UTF_8).strip();
+            if(p.waitFor()!=0 || !actual.equals("127.0.0.1:"+port)) throw new IllegalStateException("Database binding does not match isolated project");
+        } catch(java.io.IOException | InterruptedException e) { throw new IllegalStateException("Cannot verify database binding",e); }
+        return "jdbc:postgresql://127.0.0.1:"+port+"/researchdesk";
+    }
     public static String file() {
         return Path.of(System.getProperty("user.dir"), "../../infra/compose.yaml").normalize().toString();
     }

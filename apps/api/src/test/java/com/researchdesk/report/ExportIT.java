@@ -73,7 +73,7 @@ class ExportIT extends ReportVersionIT {
                 "docker",
                 "compose",
                 "-p",
-                "researchdesk-reports",
+                com.researchdesk.ComposeFixture.project(),
                 "-f",
                 java.nio.file.Path.of(System.getProperty("user.dir"), "../../infra/compose.yaml")
                     .normalize()
