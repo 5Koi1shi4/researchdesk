@@ -2592,6 +2592,93 @@
           }
         }
       }
+    },
+    "/api/runs/{runId}/report": {
+      "get": {
+        "operationId": "getGeneratedReport",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Report"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid report input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Resolve the completed report run to its owner-scoped editable report"
+      }
+    },
+    "/api/projects/{projectId}/usage": {
+      "get": {
+        "operationId": "listProjectUsage",
+        "summary": "Owner-scoped latest 100 terminal usage snapshots; costs are dated estimates",
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Immutable terminal usage; missing provider values are null",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/UsageRecord"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Missing or inaccessible project"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -3663,6 +3750,126 @@
           "markdown": {
             "type": "string",
             "maxLength": 200000
+          }
+        }
+      },
+      "UsageRecord": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "runId",
+          "kind",
+          "state",
+          "mode",
+          "createdAt",
+          "provider",
+          "model",
+          "currency",
+          "priceDate",
+          "inputTokens",
+          "outputTokens",
+          "totalTokens",
+          "durationMs",
+          "retrievalMs",
+          "ttftMs",
+          "queueWaitMs",
+          "estimatedCost"
+        ],
+        "properties": {
+          "runId": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string"
+          },
+          "mode": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "provider": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "model": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "currency": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "priceDate": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "inputTokens": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "outputTokens": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "totalTokens": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "durationMs": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "retrievalMs": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "ttftMs": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "queueWaitMs": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "estimatedCost": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0
           }
         }
       }

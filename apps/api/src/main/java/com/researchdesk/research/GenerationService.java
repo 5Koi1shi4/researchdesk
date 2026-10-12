@@ -15,8 +15,8 @@ public class GenerationService {
  public record Snapshot(String runId,String conversationId,String projectId,RunKind kind,List<String> documentVersionIds,String prompt,RunState state,String text,List<Citation> citations,long lastSeq,String mode,ApiError error) {}
  public record Conversation(String conversationId,String projectId,Instant createdAt) {}
  public record ConversationDetail(String conversationId,String projectId,List<Snapshot> runs) {}
- private final JdbcTemplate db; private final TransactionTemplate tx; private final ObjectMapper json; private final ProjectService projects; private final String mode; private final List<ReportDraftSink> sinks;
- public GenerationService(JdbcTemplate db,TransactionTemplate tx,ObjectMapper json,ProjectService projects,@Value("${GENERATION_MODE:demo}") String mode,List<ReportDraftSink> sinks){this.db=db;this.tx=tx;this.json=json;this.projects=projects;this.mode=mode.equals("demo")?"DEMO":"REAL";this.sinks=sinks;}
+ private final UsageService usage; private final JdbcTemplate db; private final TransactionTemplate tx; private final ObjectMapper json; private final ProjectService projects; private final String mode; private final List<ReportDraftSink> sinks;
+ public GenerationService(JdbcTemplate db,TransactionTemplate tx,ObjectMapper json,ProjectService projects,@Value("${GENERATION_MODE:demo}") String mode,List<ReportDraftSink> sinks,UsageService usage){this.usage=usage;this.db=db;this.tx=tx;this.json=json;this.projects=projects;this.mode=mode.equals("demo")?"DEMO":"REAL";this.sinks=sinks;}
  public static List<Map<String,String>> boundedHistory(List<Map<String,String>> all){
   var result=new LinkedList<Map<String,String>>(); int remaining=8000;
   // UTF-8 bytes conservatively upper-bound byte-based model tokens, including emoji and rare scripts.
@@ -59,7 +59,8 @@ public class GenerationService {
  public ConversationDetail conversation(UUID owner,UUID conversation){var project=db.query("SELECT c.project_id FROM business.conversations c JOIN business.projects p ON p.id=c.project_id WHERE c.id=? AND p.owner_id=?",(r,n)->r.getObject(1,UUID.class),conversation,owner).stream().findFirst().orElseThrow(GenerationService::missing);return new ConversationDetail(conversation.toString(),project.toString(),db.query("SELECT * FROM business.generation_runs WHERE conversation_id=? ORDER BY created_at,id",this::map,conversation).stream().map(this::redact).toList());}
  public Snapshot cancel(UUID owner,UUID run){get(owner,run);append(run,EventType.CANCELLED,Map.of("state","CANCELLED"));return get(owner,run);}
  /** Atomically assigns authoritative sequence, folds snapshot and appends durable event. */
- public boolean append(UUID run,EventType type,Map<String,Object> payload){RunEventValidator.validate(type,payload);return Boolean.TRUE.equals(tx.execute(status->{
+ public boolean append(UUID run,EventType type,Map<String,Object> payload){return append(run,type,payload,null);}
+ public boolean append(UUID run,EventType type,Map<String,Object> payload,Map<String,Object> metadata){RunEventValidator.validate(type,payload);return Boolean.TRUE.equals(tx.execute(status->{
   var s=raw(run,true);if(terminal(s.state()))return false;
   if(type==EventType.STARTED){if(s.state()!=RunState.QUEUED)return false;if(!s.kind().name().equals(payload.get("kind")))throw new IllegalArgumentException("Invalid start");}
   else if(s.state()!=RunState.RUNNING&&type!=EventType.CANCELLED&&type!=EventType.FAILED)throw new IllegalArgumentException("Run not started");
@@ -73,7 +74,7 @@ public class GenerationService {
    case CANCELLED->next=RunState.CANCELLED;
   }
   long seq=s.lastSeq()+1;db.update("UPDATE business.generation_runs SET state=?,text=?,citations=?::jsonb,error=?::jsonb,last_seq=?,updated_at=now(),deadline=CASE WHEN ?='RUNNING' AND deadline IS NULL THEN now()+(? * interval '1 second') ELSE deadline END WHERE id=?",next.name(),text,encode(cs),error==null?null:encode(error),seq,next.name(),s.kind()==RunKind.ANSWER?120:300,run);
-  db.update("INSERT INTO business.run_events(run_id,seq,type,payload) VALUES (?,?,?,?::jsonb)",run,seq,type.name().toLowerCase(Locale.ROOT),encode(payload));return true;
+  db.update("INSERT INTO business.run_events(run_id,seq,type,payload) VALUES (?,?,?,?::jsonb)",run,seq,type.name().toLowerCase(Locale.ROOT),encode(payload));if(terminal(next))usage.record(run,s.mode(),metadata);return true;
  }));}
  public void fail(UUID run,String code,String message){append(run,EventType.FAILED,Map.of("error",Map.of("code",code,"message",message,"requestId",UUID.randomUUID().toString())));}
  Map<String,Object> providerRequest(UUID run){var s=raw(run,false);var titles=new HashMap<String,String>();for(var version:s.documentVersionIds())db.query("SELECT d.title FROM business.documents d JOIN business.document_versions v ON v.document_id=d.id WHERE v.id=?",r->{titles.put(version,r.getString(1));},id(version));return Map.of("runId",s.runId(),"kind",s.kind().name(),"projectId",s.projectId(),"documentVersionIds",s.documentVersionIds(),"prompt",s.prompt(),"history",history(db.queryForObject("SELECT history::text FROM business.generation_runs WHERE id=?",String.class,run)),"titles",titles);}

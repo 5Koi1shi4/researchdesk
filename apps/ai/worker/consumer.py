@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import threading
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -15,7 +16,7 @@ from generated.contracts import InternalTask
 from ingestion.indexer import index_document, StaleAttempt
 from ingestion.parser import parse_document, ParseError, MAX_BYTES
 
-LOG=logging.getLogger(__name__)
+LOG=logging.getLogger('uvicorn.error.ingestion')
 STREAM='researchdesk:ingestion'
 GROUP='ingestion-v1'
 
@@ -55,6 +56,7 @@ def process_message(payload):
         if error.code==409: return
         raise
     # Use Java's canonical payload, not untrusted queue metadata, after ownership is acquired.
+    started=time.monotonic();parse_ms=None;index_ms=None;outcome='FAILED'
     task=claim['task']; stop=threading.Event();lost=threading.Event()
     def renew():
         while not stop.wait(max(1,claim['leaseSeconds']/3)):
@@ -62,18 +64,26 @@ def process_message(payload):
             except Exception: lost.set();return
     heartbeat=threading.Thread(target=renew,name='ingestion-heartbeat',daemon=True);heartbeat.start()
     try:
-        sections=parse_document(read_object(task['objectKey']),claim['mediaType'])
+        content=read_object(task['objectKey'])
+        parse_start=time.monotonic()
+        try: sections=parse_document(content,claim['mediaType'])
+        finally: parse_ms=int((time.monotonic()-parse_start)*1000)
         if lost.is_set(): raise StaleAttempt()
-        index_document(task,sections)
+        index_start=time.monotonic()
+        try: index_document(task,sections)
+        finally: index_ms=int((time.monotonic()-index_start)*1000)
         callback(task,'complete')
-    except StaleAttempt: pass
+        outcome='SUCCEEDED'
+    except StaleAttempt: outcome='STALE_ATTEMPT'
     except urllib.error.HTTPError as error:
         if error.code!=409: callback(task,'fail',code='INGESTION_UNAVAILABLE',permanent=False)
     except ParseError as error:
         callback(task,'fail',code=error.code,permanent=error.code!='PARSER_BUSY')
     except Exception:
         callback(task,'fail',code='INGESTION_UNAVAILABLE',permanent=False)
-    finally: stop.set();heartbeat.join(timeout=6)
+    finally:
+        LOG.info('ingestion taskId=%s attemptId=%s state=%s parseMs=%s indexMs=%s durationMs=%s',task['taskId'],task['attemptId'],outcome,parse_ms,index_ms,int((time.monotonic()-started)*1000))
+        stop.set();heartbeat.join(timeout=6)
 
 
 def consume(stop: threading.Event):

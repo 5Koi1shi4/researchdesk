@@ -13,6 +13,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 @Service
 public class TaskService {
+ private static final org.slf4j.Logger LOG=org.slf4j.LoggerFactory.getLogger(TaskService.class);
  public record Attempt(UUID attemptId,long fence) {}
  public record Failure(UUID attemptId,long fence,String code,boolean permanent) {}
  public record Claim(InternalTask task,String mediaType,int leaseSeconds) {}
@@ -33,6 +34,8 @@ public class TaskService {
   var r=locked(id);if(!same(r,attempt)||!"QUEUED".equals(r.get("state"))||!"PROCESSING".equals(r.get("document_state"))||!db.queryForObject("SELECT available_at<=clock_timestamp() FROM business.tasks WHERE id=?",Boolean.class,id))throw stale();
   db.update("UPDATE business.tasks SET state='RUNNING',lease_until=clock_timestamp()+(? * interval '1 second') WHERE id=?",leaseSeconds,id);
   db.queryForList("SELECT business.claim_index(document_version_id,project_id,attempt_id,fence,lease_until) FROM business.tasks WHERE id=?",id);
+  Long queueWaitMs=db.queryForObject("SELECT GREATEST(0,(EXTRACT(EPOCH FROM (clock_timestamp()-created_at))*1000)::bigint) FROM business.tasks WHERE id=?",Long.class,id);
+  LOG.info("ingestion taskId={} attemptId={} queueWaitMs={}",id,attempt.attemptId(),queueWaitMs);
   return new Claim(payload(r),r.get("media_type").toString(),leaseSeconds);
  });}
  public void heartbeat(UUID id,Attempt attempt){tx.executeWithoutResult(s->{var r=locked(id);running(r,attempt);db.update("UPDATE business.tasks SET lease_until=clock_timestamp()+(? * interval '1 second') WHERE id=?",leaseSeconds,id);db.queryForList("SELECT business.renew_index(document_version_id,attempt_id,fence,lease_until) FROM business.tasks WHERE id=?",id);});}

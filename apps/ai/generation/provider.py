@@ -16,8 +16,18 @@ def check_deadline(deadline):
     if time.monotonic() >= deadline:
         raise ProviderError('GENERATION_TIMEOUT')
 
+def usage_snapshot(provider=None, raw=None):
+    values = raw if isinstance(raw, dict) else {}
+    def token(key):
+        value = values.get(key)
+        return value if type(value) is int and 0 <= value <= 9007199254740991 else None
+    return {'provider': 'openai-compatible' if getattr(provider, 'mode', None) == 'openai-compatible' else 'demo',
+            'model': getattr(provider, 'model', None), 'mode': 'REAL' if getattr(provider, 'mode', None) == 'openai-compatible' else 'DEMO',
+            'inputTokens': token('prompt_tokens'), 'outputTokens': token('completion_tokens'), 'totalTokens': token('total_tokens')}
+
 class DemoProvider:
     mode = 'demo'
+    def __init__(self): self.usage = usage_snapshot(self)
     def stream(self, messages, max_tokens, deadline):
         check_deadline(deadline)
         evidence = json.loads(messages[-1]['content'])['evidence']
@@ -41,10 +51,12 @@ class OpenAICompatibleProvider:
         if not model or not api_key:
             raise ProviderError('PROVIDER_NOT_CONFIGURED')
         self.url, self.model, self.api_key = base_url.rstrip('/')+'/chat/completions', model, api_key
+        self.usage = usage_snapshot(self)
 
     def stream(self, messages, max_tokens, deadline):
         check_deadline(deadline)
-        body = json.dumps({'model':self.model,'messages':messages,'max_tokens':max_tokens,'stream':True}).encode()
+        self.usage = usage_snapshot(self)
+        body = json.dumps({'model':self.model,'messages':messages,'max_tokens':max_tokens,'stream':True,'stream_options':{'include_usage':True}}).encode()
         parsed = urllib.parse.urlsplit(self.url)
         connection_type = http.client.HTTPSConnection if parsed.scheme == 'https' else http.client.HTTPConnection
         connection = connection_type(parsed.hostname, parsed.port, timeout=max(.01,min(5,deadline-time.monotonic())))
@@ -87,6 +99,7 @@ class OpenAICompatibleProvider:
                     try:
                         packet = json.loads(data)
                         if 'error' in packet: raise ProviderError('PROVIDER_UNAVAILABLE')
+                        if 'usage' in packet: self.usage = usage_snapshot(self, packet['usage'])
                         choices = packet.get('choices')
                         if choices == [] and 'usage' in packet: continue
                         choice = choices[0]

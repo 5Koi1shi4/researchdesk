@@ -25,10 +25,13 @@ public class GenerationWorker {
     long expected=1;boolean ended=false;
     var source=response.body().source();
     for(String line;(line=source.readUtf8LineStrict(262144))!=null;){
-     var event=json.readValue(line,RunEvent.class);if(!id.toString().equals(event.runId())||event.seq()!=expected++)throw new IllegalArgumentException("Invalid provider sequence");RunEventValidator.validate(event.type(),event.payload());
+     var tree=json.readTree(line);if(!tree.isObject())throw new IllegalArgumentException("Invalid event");
+     var metadata=((com.fasterxml.jackson.databind.node.ObjectNode)tree).remove("usage");
+     Map<String,Object> usage=metadata!=null&&metadata.isObject()?json.convertValue(metadata,new com.fasterxml.jackson.core.type.TypeReference<Map<String,Object>>(){}):null;
+     var event=json.treeToValue(tree,RunEvent.class);if(!id.toString().equals(event.runId())||event.seq()!=expected++)throw new IllegalArgumentException("Invalid provider sequence");RunEventValidator.validate(event.type(),event.payload());
      if(event.type()==EventType.STARTED){if(expected!=2||!kind.name().equals(event.payload().get("kind")))throw new IllegalArgumentException("Invalid provider start");continue;}
      if(expected==2)throw new IllegalArgumentException("Missing provider start");
-     if(!runs.append(id,event.type(),event.payload())){call.cancel();return;}
+     if(!runs.append(id,event.type(),event.payload(),usage)){call.cancel();return;}
      if(event.type()==EventType.COMPLETED||event.type()==EventType.FAILED||event.type()==EventType.CANCELLED){ended=true;break;}
     }
     if(!ended)runs.fail(id,"GENERATION_INTERRUPTED","生成连接中断，请显式发起新的任务。");
