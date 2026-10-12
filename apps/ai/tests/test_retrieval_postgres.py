@@ -1,6 +1,7 @@
 """Run only against an explicitly opted-in isolated PostgreSQL instance."""
 import os
 import uuid
+from urllib.parse import urlsplit
 import pytest
 import psycopg
 
@@ -11,7 +12,8 @@ def db(monkeypatch):
     dsn = os.getenv('RETRIEVAL_TEST_ADMIN_URL')
     if not dsn:
         pytest.skip('Set RETRIEVAL_TEST_ADMIN_URL to an isolated migrated PostgreSQL')
-    assert '18082/' in dsn, 'retrieval tests require isolated loopback port 18082'
+    target=urlsplit(dsn)
+    assert target.hostname in ('127.0.0.1','localhost') and target.port==18082, 'retrieval tests require isolated loopback port 18082'
     monkeypatch.setenv('DATABASE_URL', dsn.replace('researchdesk:researchdesk-dev-only', 'researchdesk_retrieval:researchdesk-retrieval-dev-only'))
     with psycopg.connect(dsn, autocommit=True) as conn:
         user, project, other = [str(uuid.uuid4()) for _ in range(3)]
