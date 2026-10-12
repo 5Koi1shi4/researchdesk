@@ -1,25 +1,37 @@
 # Python report and export verification
 
-Owned implementation: generation/report.py, generation/export.py, generation/export_routes.py, app router registration, Docker generation/font COPY, dependency locks.
+## Implemented seams
 
-Report seam is async generate_report(evidence, provider, prompt, allowed_version_ids, titles=None, deadline=None). Evidence uses frozen chunk_id/document_version_id/text/page/paragraph/score attributes. Provider.stream(messages,max_tokens=6000,deadline=monotonic_deadline) is an async iterable of text. No provider call occurs for insufficient evidence. Unknown or malformed citations and unauthorized evidence fail. Output is capped at 200,000 characters and 300 seconds; caller owns run lifecycle/persistence. No sibling generation import or competing scheduler.
+`await generation.report.generate_report(evidence, provider, prompt, allowed_version_ids, titles=None, deadline=None)` returns `{markdown, citations}` using the frozen Evidence attributes (`chunk_id`, `document_version_id`, `text`, `page`, `paragraph`, `score`). It accepts the generation branch synchronous `provider.stream(messages, max_tokens=6000, deadline=...)` and asynchronous test providers. Structured messages contain `question`, `history: []`, and evidence fields expected by the shared provider. No evidence means no provider call. Unknown/malformed citations, evidence outside the authorized versions, empty output and output over 200,000 characters fail. The default deadline is 300 seconds; an async caller timeout also bounds a stalled synchronous producer. The configured provider remains responsible for cooperative socket cancellation. Java owns run lifecycle and final persistence.
 
-All literal [[cite:chunk_id]] occurrences are citation metadata, including fenced/inline code. Editing removes unused citations from export appendix; numbers are recomputed by first occurrence. Canonical Citation is used; DELETED entries never export their excerpt.
+All literal `[[cite:chunk_id]]` occurrences are citation metadata, including code. Numbering follows first occurrence, and unused mappings are omitted. Exports use canonical Citation; DELETED entries never export their excerpt. Source state is supplied by Java, not trusted from browser input.
 
-POST /internal/reports/export accepts {markdown,citations,format:MARKDOWN|PDF}, authenticated with Authorization: Bearer INTERNAL_SERVICE_TOKEN. Empty/mismatched configuration fails closed. Java selects the immutable version, verifies ownership, creates task and stores private bytes. Python returns bytes directly. This internal route is not browser accessible.
+`POST /internal/reports/export` accepts `{markdown, citations, format: MARKDOWN|PDF}` with `Authorization: Bearer INTERNAL_SERVICE_TOKEN`. Empty/mismatched token configuration fails closed. The renderer accepts no object key or file path and returns bytes. Java selects the immutable version, authorizes ownership, owns durable tasks and stores private attachments.
 
-ReportLab 4.4.9 uses escaped text paragraphs and bounded/splittable tables. It has no resource resolver: raw HTML, Markdown images, file URLs and HTTP URLs remain literal text, never fetch targets. Only bundled font is read by rendering. No system font dependency. Oversized table cells split over pages. PDF contains subset embedded TrueType Chinese font.
+## Rendering boundary and visual evidence
 
-Red evidence: test_reports.py collection failed with missing generation.report; test_export.py collection failed with missing generation.export before implementation. Green: apps/ai/.venv/Scripts/python.exe -m pytest apps/ai/tests/test_reports.py apps/ai/tests/test_export.py -q => 9 passed (one upstream Starlette TestClient deprecation warning).
+ReportLab 4.4.9 renders escaped text, bounded tables and split cells. It has no HTML, image, stylesheet or resource resolver. HTTP URLs, file URLs, raw HTML and Markdown images remain literal text. Only the bundled font is read for rendering; no system font is required. PDF includes a subset embedded TrueType Chinese font.
 
-Actual rendering: docs/export-evidence/render_sample.py creates Chinese heading, 99-row table, long Chinese citation, deleted citation; six pages. PNG pages 1, 2 and 6 saved, page 1 and 6 inspected visually: readable Chinese, clear table grid, citation wraps within page margins, deleted-source message present with no secret excerpt. PDF pypdf extraction and embedded FontFile2 validated by tests. These are deterministic renderer checks, not model quality evaluation. No real provider configured or evaluated.
+`docs/export-evidence/render_sample.py` produced the committed six-page Chinese PDF with a 99-row table, long citation and deleted-source citation. Pages 1, 2 and 6 are committed as PNG evidence. Pages 1 and 6 were independently inspected by root: Chinese text is readable, table borders fit the margins, long references wrap and the deleted-source notice omits the secret excerpt. Parser/font tests also check Chinese text extraction, more than two pages, FontFile2 embedding and oversized table-cell splitting. These checks establish renderer behavior; they do not establish model quality.
 
-Bundled font source: https://raw.githubusercontent.com/notofonts/noto-cjk/main/Sans/Variable/TTF/Subset/NotoSansSC-VF.ttf . OFL license: https://raw.githubusercontent.com/notofonts/noto-cjk/main/Sans/LICENSE (stored fonts/OFL.txt). Downloaded 2026-10-12. Original SHA256 D68BAFCB48A2707749396AA12BBBD833CB70401F3A9A689FD2902C7E0D295964. Frozen wght=400 regular instance via fonttools 4.61.1 (verification tooling only).
+## Font provenance
 
-Pending integration: generation sibling must call report seam with its committed provider/retrieval interfaces; Java immutable history/ownership and browser journey verified by their owners. Isolated Docker acceptance is orchestrator-owned. No production readiness or real-model score claimed.
+Downloaded 2026-10-12 from `https://raw.githubusercontent.com/notofonts/noto-cjk/main/Sans/Variable/TTF/Subset/NotoSansSC-VF.ttf`; OFL license is stored at `generation/fonts/OFL.txt`, from `https://raw.githubusercontent.com/notofonts/noto-cjk/main/Sans/LICENSE`.
 
-Final frozen font SHA256: F3CC47217191067100906EA2BFDC467F8E3E1465CAF835A8A4A8CFCADBC1381B. Regular instance visual recheck on page 2 confirms repeated header and readable row 30–61 without clipping. Renderer metadata retains upstream Thin name; actual frozen outlines use wght400. PDF production uses no fonttools runtime dependency.
+Original SHA256: `D68BAFCB48A2707749396AA12BBBD833CB70401F3A9A689FD2902C7E0D295964`.
 
-Latest verification 2026-10-12: same targeted pytest command => 13 passed, one upstream deprecation warning, 4.80s. Includes stalled provider stream deadline, malformed/no citations and 200000 character bound. Commits 36c6707 and bd1aa93. asyncio.timeout enforces provider stream wall deadline independently of provider implementation.
+Frozen regular `wght=400` instance SHA256: `F3CC47217191067100906EA2BFDC467F8E3E1465CAF835A8A4A8CFCADBC1381B`.
 
-Provider alignment correction: read sibling provider.py/prompts.py read-only after they appeared. Shared provider is synchronous; report seam accepts synchronous or asynchronous iterators using JSON {question,history:[],evidence:[{chunk_id,text,page,paragraph}]} matching build_messages. Sync generation runs on a bounded-output daemon producer; caller timeout remains enforceable if iteration stalls. Cooperative configured provider enforces socket/deadline itself. No sibling code imported or copied as dependency. Red sync compatibility test initially TypeError (async for over generator); after alignment 14 tests passed in 3.11s. Frozen report callable remains async for lifecycle consumer integration.
+The regular instance was created with fonttools 4.61.1 as verification tooling. Production requires no fonttools. Upstream font metadata retains the Thin name; the frozen outlines use weight 400.
+
+## Actual tests and limits
+
+Initial report/export test collection failed because the implementation modules did not exist. The synchronous provider compatibility test later failed with `TypeError` before the shared interface alignment. Final root command:
+
+```powershell
+./apps/ai/.venv/Scripts/python.exe -m pytest apps/ai/tests -m 'not integration' -q
+```
+
+Result: **65 passed, 5 deselected, 1 upstream Starlette TestClient deprecation warning**, 30.80 seconds. The 5 deselected baseline tests depend on external ingestion integration and were not part of this report renderer run. Targeted report/export tests cover provider deadlines (async and sync), canonical citations, invalid evidence/markers, Chinese multipage rendering, deleted redaction and internal authentication.
+
+Generation lifecycle wiring and full uploaded-source → retrieval → generated run → saved report acceptance remain pending integrated branches. Real model configuration and evaluation are deferred by the user; no provider key was requested and no real-model result is claimed. See `reports-integration.md` and the final `PARALLEL-REPORT.md` for integrated module results.
