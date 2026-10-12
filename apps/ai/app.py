@@ -44,3 +44,5 @@ def ready():
 
 from generation.routes import router as generation_router
 app.include_router(generation_router)
+from generation.export_routes import router as export_router
+app.include_router(export_router)

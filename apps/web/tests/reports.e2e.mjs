@@ -1,0 +1,33 @@
+import {chromium} from 'playwright';
+import assert from 'node:assert/strict';
+import {randomUUID} from 'node:crypto';
+import {mkdir,readFile} from 'node:fs/promises';
+import {fileURLToPath} from 'node:url';
+import path from 'node:path';
+const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../../..');
+const base=process.env.REPORTS_BASE_URL||'http://localhost:18084';
+assert.equal(new URL(base).port,'18084','Use isolated reports18084 only');
+const output=path.join(root,'.cache/reports-browser');await mkdir(output,{recursive:true});
+const context=await chromium.launchPersistentContext(path.join(output,'profile-'+randomUUID()),{channel:'msedge',headless:true,viewport:{width:1360,height:1000},timeout:20000});
+const page=await context.newPage();page.setDefaultTimeout(20000);
+try{
+ let external=0;page.on('request',r=>{if(new URL(r.url()).origin!==new URL(base).origin)external++;});
+ await page.goto(base);await page.getByRole('button',{name:'没有账号？创建账号'}).click();
+ await page.getByLabel('邮箱',{exact:true}).fill('reports-'+randomUUID()+'@researchdesk.test');await page.getByLabel('密码',{exact:true}).fill('ReportBrowserPassword9!');await page.getByRole('button',{name:'注册并进入',exact:true}).click();
+ await page.getByLabel('新项目名称').fill('报告浏览器验收');await page.getByRole('button',{name:'创建项目',exact:true}).click();await page.getByRole('button',{name:/报告浏览器验收/}).click();await page.getByRole('button',{name:'报告',exact:true}).click();
+ await page.getByText('还没有报告',{exact:true}).waitFor();await page.getByLabel('报告标题').fill('中文报告验收');await page.getByRole('button',{name:'新建空白报告',exact:true}).click();
+ const editor=page.getByLabel('报告 Markdown');await editor.waitFor();
+ const markdown='# 中文研究\n\n**重点**：保存的中文正文。\n\n<script>window.reportExecuted=true</script>\n![外部图片](https://external.invalid/tracker.png)\n\n| 指标 | 解释 |\n| --- | --- |\n| 一 | 中文测试 |';
+ await editor.fill(markdown);let dialogSeen=false;page.once('dialog',async d=>{dialogSeen=true;await d.dismiss();});await page.getByRole('button',{name:'返回项目列表',exact:true}).click();assert.ok(dialogSeen,'Route leave asks about dirty draft');assert.equal(await editor.inputValue(),markdown);
+ await page.getByRole('button',{name:'保存新版本',exact:true}).click();await page.getByText('已保存版本 2',{exact:true}).waitFor();assert.equal(await page.evaluate(()=>window.reportExecuted),undefined);assert.equal(await page.locator('.report-preview script,.report-preview img').count(),0);assert.equal(external,0);
+ const session=await (await page.request.get(base+'/api/auth/session')).json();const projects=await (await page.request.get(base+'/api/projects')).json();const reports=await (await page.request.get(base+'/api/projects/'+projects[0].id+'/reports')).json();const id=reports[0].id;
+ const old=await (await page.request.get(base+'/api/reports/'+id+'/versions/1')).json();assert.equal(old.markdown,'');
+ await page.getByLabel('查看版本').selectOption('1');await page.getByText('历史版本只读',{exact:true}).waitFor();assert.equal(await editor.count(),0);await page.getByLabel('查看版本').selectOption('current');await editor.waitFor();
+ await editor.fill(markdown+'\n未保存内容');await page.getByRole('button',{name:'导出 Markdown',exact:true}).click();const downloadLink=page.getByRole('link',{name:'下载 Markdown（版本 2）'});await downloadLink.waitFor({timeout:60000});
+ const downloadPromise=page.waitForEvent('download');await downloadLink.click();const download=await downloadPromise;const downloaded=path.join(output,'version2.md');await download.saveAs(downloaded);const body=await readFile(downloaded,'utf8');assert.ok(body.includes('中文研究'));assert.ok(!body.includes('未保存内容'));
+ await page.screenshot({path:path.join(output,'reports-desktop.png'),fullPage:true});await page.setViewportSize({width:390,height:844});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth));await page.screenshot({path:path.join(output,'reports-mobile.png'),fullPage:true});
+ const updated=await page.request.post(base+'/api/reports/'+id+'/versions',{headers:{'X-CSRF-Token':session.csrfToken},data:{baseVersion:2,markdown:markdown+'\n另一窗口更新'}});assert.equal(updated.status(),201);
+ await page.getByRole('button',{name:'保存新版本',exact:true}).click();await page.getByRole('alert').filter({hasText:'保留了你的草稿'}).waitFor();assert.ok((await editor.inputValue()).includes('未保存内容'));await page.screenshot({path:path.join(output,'reports-conflict.png'),fullPage:true});
+ await page.getByRole('button',{name:'另存为报告副本',exact:true}).click();await page.getByText('已保存版本 1',{exact:true}).waitFor();assert.ok((await editor.inputValue()).includes('未保存内容'));
+ console.log('PASS reports real browser: empty/create/save2/safe preview/no external requests/leave guard/immutable v1/history/version2 Markdown download/conflict preserved/copy/mobile390');console.log('Evidence '+output);
+}finally{await context.close();}
