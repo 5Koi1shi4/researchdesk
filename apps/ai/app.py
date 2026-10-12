@@ -41,3 +41,6 @@ def ready():
     except (psycopg.Error, redis.RedisError):
         return JSONResponse({"status": "DOWN"}, status_code=503)
     return {"status": "UP"}
+
+from generation.export_routes import router as export_router
+app.include_router(export_router)
