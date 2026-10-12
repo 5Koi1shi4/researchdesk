@@ -44,3 +44,21 @@ it('refreshes persisted failure and renders its reason',async()=>{
  await screen.findByText('研究.md');expect(screen.getByText('处理失败')).toBeTruthy();expect(screen.getByText(/检查原文件/)).toBeTruthy();
  fireEvent.click(screen.getByRole('button',{name:'刷新资料状态'}));await waitFor(()=>expect(screen.getByText('处理失败')).toBeTruthy());
 });
+it('keeps upload rejection visible through successful processing polls until a new file is selected',async()=>{
+ vi.useFakeTimers({toFake:['setInterval','clearInterval']});
+ let listReads=0;
+ vi.stubGlobal('fetch',vi.fn(async(_path:string,options:RequestInit)=>{
+  if(options.method==='POST')return response({code:'ENCRYPTED_PDF',message:'不支持加密 PDF，请解密后重新上传。',requestId:'r-1'},400);
+  listReads++;return response([{...doc,title:listReads===1?'研究.md':'刷新后的研究.md'}]);
+ }));
+ render(<DocumentPage project={project} session={session}/>);
+ await screen.findByText('研究.md');
+ fireEvent.change(screen.getByLabelText('资料文件'),{target:{files:[new File(['secret'],'秘密.pdf')]}});
+ fireEvent.click(screen.getByRole('button',{name:'上传资料'}));
+ expect((await screen.findByRole('alert')).textContent).toContain('解密后重新上传');
+ await act(async()=>{await vi.advanceTimersByTimeAsync(3000);});
+ expect(screen.getByText('刷新后的研究.md')).toBeTruthy();
+ expect(screen.getByRole('alert').textContent).toContain('解密后重新上传');
+ fireEvent.change(screen.getByLabelText('资料文件'),{target:{files:[new File(['# 修正资料'],'修正资料.md')]}});
+ expect(screen.queryByRole('alert')).toBeNull();
+});
