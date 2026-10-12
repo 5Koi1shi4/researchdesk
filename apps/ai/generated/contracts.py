@@ -297,3 +297,75 @@ class DocumentTask(BaseModel):
     state: TaskState
     errorCode: str | None
     errorMessage: str | None
+
+
+class Report(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    id: UUID
+    projectId: UUID
+    title: Annotated[str, Field(max_length=200, min_length=1)]
+    currentVersion: Annotated[int, Field(ge=1)]
+    createdAt: AwareDatetime
+
+
+class ReportVersion(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    reportId: UUID
+    version: Annotated[int, Field(ge=1)]
+    markdown: Annotated[str, Field(max_length=200000)]
+    citations: list[Citation]
+    createdAt: AwareDatetime
+    demo: bool
+
+
+class ReportExportFormat(RootModel[Literal['MARKDOWN', 'PDF']]):
+    root: Literal['MARKDOWN', 'PDF']
+
+
+class ReportExport(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    id: UUID
+    reportId: UUID
+    version: Annotated[int, Field(ge=1)]
+    format: ReportExportFormat
+    state: TaskState
+    errorCode: str | None
+    createdAt: AwareDatetime
+
+
+class ReportSaveRequest(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    baseVersion: Annotated[int, Field(ge=1)]
+    markdown: Annotated[str, Field(max_length=200000)]
+
+
+class ReportCopyRequest(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    version: Annotated[int, Field(ge=1)]
+    markdown: Annotated[str, Field(max_length=200000)]
+
+
+class ReportExportRequest(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    version: Annotated[int, Field(ge=1)]
+    format: ReportExportFormat
+
+
+class ReportCreateRequest(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    title: Annotated[str, Field(max_length=200, min_length=1)]
+    markdown: Annotated[str, Field(max_length=200000)]
