@@ -14,7 +14,7 @@ public class ApiExceptionHandler {
     ResponseEntity<ApiError> missingFile(Exception ignored) { return failure(new ApiFailure(400, "INVALID_REQUEST", "请选择一个资料文件后上传。")); }
     @ExceptionHandler(ApiFailure.class)
     ResponseEntity<ApiError> failure(ApiFailure failure) {
-        return ResponseEntity.status(failure.status).header("Cache-Control", "no-store").body(new ApiError(failure.code, failure.getMessage(), UUID.randomUUID().toString()));
+        return ResponseEntity.status(failure.status).contentType(org.springframework.http.MediaType.APPLICATION_JSON).header("Cache-Control", "no-store").body(new ApiError(failure.code, failure.getMessage(), UUID.randomUUID().toString()));
     }
     @ExceptionHandler({HttpMessageNotReadableException.class, org.springframework.web.method.annotation.MethodArgumentTypeMismatchException.class})
     ResponseEntity<ApiError> malformed(Exception ignored) {

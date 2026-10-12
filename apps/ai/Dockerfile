@@ -7,6 +7,8 @@ COPY apps/ai/app.py app.py
 COPY apps/ai/generated generated
 COPY apps/ai/ingestion ingestion
 COPY apps/ai/worker worker
+COPY apps/ai/generation generation
+COPY apps/ai/retrieval retrieval
 USER 10001:10001
 EXPOSE 8000
 CMD ["python", "-m", "uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]

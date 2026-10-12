@@ -297,3 +297,39 @@ class DocumentTask(BaseModel):
     state: TaskState
     errorCode: str | None
     errorMessage: str | None
+
+
+class RunSnapshot(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    runId: str
+    conversationId: str
+    projectId: str
+    kind: RunKind
+    documentVersionIds: list[str]
+    prompt: str
+    state: RunState
+    text: str
+    citations: list[Citation]
+    lastSeq: Annotated[int, Field(ge=0)]
+    mode: Literal['DEMO', 'REAL']
+    error: ApiError | None
+
+
+class RunConversation(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    conversationId: str
+    projectId: str
+    createdAt: AwareDatetime
+
+
+class RunConversationDetail(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    conversationId: str
+    projectId: str
+    runs: list[RunSnapshot]
