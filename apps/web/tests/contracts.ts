@@ -15,3 +15,8 @@ const nullConversation: Schemas['GenerationRequest'] = {kind: 'ANSWER', projectI
 // @ts-expect-error Delta payload requires text.
 const badEvent: Schemas['RunEvent'] = {runId: 'r1', seq: 1, type: 'delta', payload: {state: 'COMPLETED'}};
 void [valid, event, badKind, badRun, badTask, nullConversation, badEvent];
+
+const document: Schemas['DocumentUpload'] = {documentId: 'd1', versionId: 'v1', taskId: 't1', state: 'PROCESSING'};
+// @ts-expect-error Task QUEUED does not belong to document states.
+const badDocument: Schemas['DocumentState'] = 'QUEUED';
+void [document, badDocument];

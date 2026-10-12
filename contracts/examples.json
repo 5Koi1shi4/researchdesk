@@ -168,5 +168,43 @@
     {
       "state": "CANCELLED"
     }
+  ],
+  "DocumentState": [
+    "PROCESSING",
+    "READY",
+    "FAILED",
+    "DELETING",
+    "DELETED"
+  ],
+  "DocumentUpload": [
+    {
+      "documentId": "00000000-0000-4000-8000-000000000001",
+      "versionId": "00000000-0000-4000-8000-000000000001",
+      "taskId": "00000000-0000-4000-8000-000000000001",
+      "state": "PROCESSING"
+    }
+  ],
+  "Document": [
+    {
+      "documentId": "00000000-0000-4000-8000-000000000001",
+      "versionId": "00000000-0000-4000-8000-000000000001",
+      "taskId": "00000000-0000-4000-8000-000000000001",
+      "title": "Research.md",
+      "state": "FAILED",
+      "errorCode": "PARSE_FAILED",
+      "errorMessage": "Check source and upload again",
+      "sizeBytes": 20,
+      "pageCount": null,
+      "createdAt": "2026-10-12T00:00:00Z"
+    }
+  ],
+  "DocumentTask": [
+    {
+      "taskId": "00000000-0000-4000-8000-000000000001",
+      "documentVersionId": "00000000-0000-4000-8000-000000000001",
+      "state": "QUEUED",
+      "errorCode": null,
+      "errorMessage": null
+    }
   ]
 }

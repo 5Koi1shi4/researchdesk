@@ -21,13 +21,13 @@ def test_optional_conversation_id_can_be_omitted_but_cannot_be_null():
         contracts.GenerationRequest.model_validate(explicit_null)
 
 
-@pytest.mark.parametrize("name", ["TaskState", "RunState", "RunKind"])
+@pytest.mark.parametrize("name", ["DocumentState", "TaskState", "RunState", "RunKind"])
 def test_schema_rejects_unknown_enum(name):
     validator = Draft202012Validator({"$ref": f"#/components/schemas/{name}", **CONTRACT})
     assert not validator.is_valid("UNKNOWN")
 
 
-@pytest.mark.parametrize("name", ["TaskState", "RunState", "RunKind", "Availability"])
+@pytest.mark.parametrize("name", ["DocumentState", "TaskState", "RunState", "RunKind", "Availability"])
 def test_generated_python_rejects_unknown_enum(name):
     with pytest.raises(ValidationError):
         getattr(contracts, name).model_validate("UNKNOWN")

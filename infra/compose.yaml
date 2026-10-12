@@ -39,6 +39,13 @@ services:
       DATABASE_URL: jdbc:postgresql://postgres:5432/researchdesk
       DATABASE_USER: researchdesk_business
       DATABASE_PASSWORD: ${BUSINESS_DATABASE_PASSWORD:-researchdesk-business-dev-only}
+      STORAGE_ENDPOINT: http://minio:9000
+      STORAGE_ACCESS_KEY: ${MINIO_ROOT_USER:-researchdesk-dev}
+      STORAGE_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-researchdesk-dev-only}
+      STORAGE_BUCKET: researchdesk-documents
+      MAX_FILE_BYTES: ${MAX_FILE_BYTES:-20971520}
+      MAX_PDF_PAGES: ${MAX_PDF_PAGES:-200}
+      MAX_DOCUMENTS_PER_PROJECT: ${MAX_DOCUMENTS_PER_PROJECT:-50}
       SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-false}
       SESSION_SECONDS: ${SESSION_SECONDS:-86400}
       REDIS_HOST: redis

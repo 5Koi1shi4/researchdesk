@@ -10,7 +10,7 @@ export async function api<T>(path: string, method = 'GET', body?: unknown, csrf?
   // Auth mutations invalidate reads begun under the previous identity immediately.
   if (method === 'POST' && ['/api/auth/login', '/api/auth/register', '/api/auth/logout'].includes(path)) invalidateAuthRequests();
   const generation = currentAuthGeneration();
-  const response = await fetch(path, { method, credentials: 'same-origin', cache: 'no-store', headers: { 'Content-Type': 'application/json', ...(csrf ? { 'X-CSRF-Token': csrf } : {}) }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
+  const response = await fetch(path, { method, credentials: 'same-origin', cache: 'no-store', headers: { ...(body instanceof FormData ? {} : { 'Content-Type': 'application/json' }), ...(csrf ? { 'X-CSRF-Token': csrf } : {}) }, ...(body === undefined ? {} : { body: body instanceof FormData ? body : JSON.stringify(body) }) });
   if (!response.ok) {
     const error: components['schemas']['ApiError'] = await response.json();
     if (response.status === 401 && options.expireOnUnauthorized !== false && generation === currentAuthGeneration()) {

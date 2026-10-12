@@ -1,6 +1,6 @@
 # ResearchDesk
 
-A separate research workspace built with React/TypeScript, Spring Boot, and an internal Python service. The workspace now provides email-form account registration, login, and private projects, plus service health and shared contracts. Uploads, retrieval, generation, and reports arrive in later tasks. No model output is simulated or claimed as real.
+A separate research workspace built with React/TypeScript, Spring Boot, and an internal Python service. The workspace now provides email-form account registration, login, and private projects, plus service health and shared contracts. Private PDF/Markdown uploads and persisted processing/task states are available; retrieval, generation, and reports arrive in later tasks. No model output is simulated or claimed as real.
 
 ## Run locally (Windows / PowerShell 7)
 
@@ -56,3 +56,20 @@ docker compose -f infra/compose.yaml up -d --no-build
 ```
 
 ProjectOwnershipIT is explicit Compose acceptance, uses unique fixture accounts, and cleans only those accounts/projects/sessions. It fails if the API/database are unavailable. It needs access to this project's Docker daemon for PostgreSQL fixture setup/cleanup; it does not expose a database port. Unit/host health checks continue to run separately. Set SESSION_COOKIE_SECURE=true behind production HTTPS and replace all development database passwords. API and AI runtime containers never receive the PostgreSQL administrator password; only the exited migration job uses it.
+
+## Private document uploads
+
+Open a project and select a PDF or UTF-8 Markdown file. The upload disclosure explains that source material will be used with the configured model service. Accepted sources stay PROCESSING with a QUEUED parsing task until the Task4 worker is implemented; this task never fabricates READY or model output. Lists and task reads always authorize the session owner and omit internal object keys.
+
+The default single-file limit is20MiB, PDF limit200pages, and project quota50documents. MAX_FILE_BYTES, MAX_PDF_PAGES, and MAX_DOCUMENTS_PER_PROJECT in .env may tighten these defaults; larger values fail startup. The proxy allows22MiB total multipart framing and returns a stable JSON413 for larger requests. Java applies the actual per-file bound while streaming to a temporary disk file. Markdown must decode strictly as UTF-8 and contain text. PDF admission rejects encryption, malformed files, excess pages and no extractable text; it performs a one-shot presence/metadata check in a separate JVM, limited to128MiB heap,96MiB metaspace,10seconds,2concurrent inspectors and32MiB total decoded streams. These checks can reject structurally complex PDFs; they are admission checks, not the future full parsing pipeline.
+
+Internal Java storage uses a private MinIO bucket on the existing Compose network; no storage/admin port or object URL is exposed to the browser. Storage writes precede the short project-row-locked transaction. That transaction creates a document, version, parsing task and Outbox together, with a project/digest unique constraint. Duplicate uploads reuse the persisted IDs and state, including at quota. A durable storage_cleanup intent exists before every external object write; successful promotion removes it in the same transaction, duplicate/rollback compensation deletes the object when possible, and failed compensation leaves the intent for cleanup. The cleanup consumer and Outbox dispatcher are subsequent worker/lifecycle work. A cleanup consumer must check object references before deletion and abort stale multipart uploads; it must not remove committed objects.
+
+```powershell
+./scripts/test-api.ps1 -Test UploadIT -Integration
+./scripts/test-upload-limits.ps1   # temporarily tests1KiB/2pages/2sources, then restores process settings and API
+npm --prefix apps/web test
+npm --prefix apps/web run test:e2e:documents
+```
+
+The browser acceptance uses locked Playwright1.64.0 and a fresh isolated headless Edge profile by default. Set E2E_BROWSER_CHANNEL to another installed Playwright-supported channel if necessary. It uploads only its own disposable fixtures, verifies actual PostgreSQL task/outbox state, checks upload errors and390px layout, and cleans its fixture account/project/objects. Screenshots are written under .cache/task3-browser/screenshots. Integration probes briefly stop/pause only this project's MinIO and always restore it; run them on the local development stack. The pinned MinIO security/production limitation above still applies.

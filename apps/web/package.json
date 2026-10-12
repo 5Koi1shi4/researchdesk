@@ -11,7 +11,8 @@
     "build": "tsc --noEmit && vite build",
     "generate:contracts": "openapi-typescript ../../contracts/openapi.json -o src/generated/contracts.ts",
     "test:contracts": "tsc --noEmit -p tsconfig.contracts.json",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:e2e:documents": "node tests/documents.e2e.mjs"
   },
   "dependencies": {
     "react": "19.2.4",
@@ -23,6 +24,7 @@
     "@types/react-dom": "19.2.3",
     "jsdom": "26.1.0",
     "openapi-typescript": "7.13.0",
+    "playwright": "1.64.0",
     "typescript": "5.9.3",
     "vite": "7.3.7",
     "vitest": "4.1.11"

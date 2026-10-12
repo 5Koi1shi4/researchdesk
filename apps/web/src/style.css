@@ -46,3 +46,19 @@ h2 { font-size:24px; }
 .loading { max-width:640px; margin:80px auto; padding:24px; }
 @media (max-width:800px) { .auth-layout { grid-template-columns:1fr; gap:32px; padding:32px 20px; max-width:540px; }.auth-intro h1 { margin:20px 0; }.auth-intro .caption { margin-top:20px; }.auth-panel { padding:24px; }.workspace { grid-template-columns:1fr; }.sidebar { padding:16px 20px; border-right:0; border-bottom:1px solid var(--border); gap:12px; }.brand { margin:0; }.account { display:flex; align-items:center; justify-content:space-between; gap:16px; }.account p { margin:0; }.project-main { padding:32px 20px; }.project-create { flex-direction:column; align-items:stretch; }.empty-state { padding:24px; }.open-label { grid-column:1; grid-row:auto; } }
 @media (prefers-reduced-motion:reduce) { *,*::before,*::after { scroll-behavior:auto!important; animation:none!important; transition:none!important; } }
+.documents { margin-top:32px; }
+.documents-heading { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:20px; }
+.documents-heading h2 { margin:0; }
+.upload-form { background:var(--surface); border:1px solid var(--border); border-top:3px solid var(--primary); padding:24px; margin-bottom:24px; }
+.upload-form input { max-width:100%; }
+.upload-form button { margin-top:20px; }
+.upload-notice { color:var(--success); }
+.document-list { list-style:none; padding:0; margin:0; border-top:1px solid var(--border); }
+.document-list li { padding:24px 0; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:flex-start; gap:24px; }
+.document-list li > div { min-width:0; }
+.document-list h3 { margin:0 0 8px; overflow-wrap:anywhere; font-size:18px; }
+.document-list p:last-child { margin-bottom:0; }
+.document-state { white-space:nowrap; color:var(--muted); }
+.state-ready { color:var(--success); }
+.state-failed { color:var(--error); }
+@media (max-width:600px) { .documents-heading { align-items:flex-start; flex-direction:column; }.upload-form { padding:20px; }.document-list li { flex-direction:column; gap:8px; }.document-state { order:-1; } }

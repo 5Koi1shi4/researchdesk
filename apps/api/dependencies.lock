@@ -1,6 +1,7 @@
 The following files have been resolved:
    ch.qos.logback:logback-classic:jar:1.5.34:compile -- module ch.qos.logback.classic
    ch.qos.logback:logback-core:jar:1.5.34:compile -- module ch.qos.logback.core
+   com.carrotsearch.thirdparty:simple-xml-safe:jar:2.7.1:compile -- module simple.xml.safe (auto)
    com.fasterxml.jackson.core:jackson-annotations:jar:2.21:compile -- module com.fasterxml.jackson.annotation
    com.fasterxml.jackson.core:jackson-core:jar:2.21.4:compile -- module com.fasterxml.jackson.core
    com.fasterxml.jackson.core:jackson-databind:jar:2.21.4:compile -- module com.fasterxml.jackson.databind
@@ -8,14 +9,27 @@ The following files have been resolved:
    com.fasterxml.jackson.datatype:jackson-datatype-jdk8:jar:2.21.4:compile -- module com.fasterxml.jackson.datatype.jdk8
    com.fasterxml.jackson.datatype:jackson-datatype-jsr310:jar:2.21.4:compile -- module com.fasterxml.jackson.datatype.jsr310
    com.fasterxml.jackson.module:jackson-module-parameter-names:jar:2.21.4:compile -- module com.fasterxml.jackson.module.paramnames
+   com.google.errorprone:error_prone_annotations:jar:2.36.0:compile -- module com.google.errorprone.annotations
+   com.google.guava:failureaccess:jar:1.0.3:compile -- module com.google.common.util.concurrent.internal
+   com.google.guava:guava:jar:33.4.8-jre:compile -- module com.google.common
+   com.google.guava:listenablefuture:jar:9999.0-empty-to-avoid-conflict-with-guava:compile -- module listenablefuture (auto)
+   com.google.j2objc:j2objc-annotations:jar:3.0.0:compile -- module com.google.j2objc.annotations
    com.jayway.jsonpath:json-path:jar:2.9.0:test -- module json.path [auto]
+   com.squareup.okhttp3:okhttp-jvm:jar:5.1.0:compile -- module okhttp3 [auto]
+   com.squareup.okhttp3:okhttp:jar:5.1.0:compile -- module okhttp (auto)
+   com.squareup.okio:okio-jvm:jar:3.15.0:compile -- module okio [auto]
+   com.squareup.okio:okio:jar:3.15.0:runtime -- module okio (auto)
    com.vaadin.external.google:android-json:jar:0.0.20131108.vaadin1:test -- module android.json (auto)
    com.zaxxer:HikariCP:jar:6.3.3:compile -- module com.zaxxer.hikari
+   commons-codec:commons-codec:jar:1.18.0:compile -- module org.apache.commons.codec
+   commons-io:commons-io:jar:2.20.0:compile -- module org.apache.commons.io
+   commons-logging:commons-logging:jar:1.3.5:compile -- module org.apache.commons.logging
    io.lettuce:lettuce-core:jar:6.6.0.RELEASE:compile -- module lettuce.core [auto]
    io.micrometer:micrometer-commons:jar:1.15.12:compile -- module micrometer.commons [auto]
    io.micrometer:micrometer-core:jar:1.15.12:compile -- module micrometer.core [auto]
    io.micrometer:micrometer-jakarta9:jar:1.15.12:compile -- module micrometer.jakarta9 [auto]
    io.micrometer:micrometer-observation:jar:1.15.12:compile -- module micrometer.observation [auto]
+   io.minio:minio:jar:8.6.0:compile -- module minio (auto)
    io.netty:netty-buffer:jar:4.1.135.Final:compile -- module io.netty.buffer [auto]
    io.netty:netty-codec:jar:4.1.135.Final:compile -- module io.netty.codec [auto]
    io.netty:netty-common:jar:4.1.135.Final:compile -- module io.netty.common [auto]
@@ -31,18 +45,27 @@ The following files have been resolved:
    net.bytebuddy:byte-buddy:jar:1.17.8:test -- module net.bytebuddy
    net.minidev:accessors-smart:jar:2.5.2:test -- module accessors.smart (auto)
    net.minidev:json-smart:jar:2.5.2:test -- module json.smart (auto)
+   org.apache.commons:commons-compress:jar:1.28.0:compile -- module org.apache.commons.compress
+   org.apache.commons:commons-lang3:jar:3.17.0:compile -- module org.apache.commons.lang3
    org.apache.logging.log4j:log4j-api:jar:2.24.3:compile -- module org.apache.logging.log4j
    org.apache.logging.log4j:log4j-to-slf4j:jar:2.24.3:compile -- module org.apache.logging.log4j.to.slf4j
+   org.apache.pdfbox:fontbox:jar:3.0.7:compile -- module org.apache.fontbox [auto]
+   org.apache.pdfbox:pdfbox-io:jar:3.0.7:compile -- module org.apache.pdfbox.io [auto]
+   org.apache.pdfbox:pdfbox:jar:3.0.7:compile -- module org.apache.pdfbox [auto]
    org.apache.tomcat.embed:tomcat-embed-core:jar:10.1.55:compile -- module org.apache.tomcat.embed.core
    org.apache.tomcat.embed:tomcat-embed-el:jar:10.1.55:compile -- module org.apache.tomcat.embed.el
    org.apache.tomcat.embed:tomcat-embed-websocket:jar:10.1.55:compile -- module org.apache.tomcat.embed.websocket
    org.apiguardian:apiguardian-api:jar:1.1.2:test -- module org.apiguardian.api
    org.assertj:assertj-core:jar:3.27.7:test -- module org.assertj.core
    org.awaitility:awaitility:jar:4.2.2:test -- module awaitility (auto)
+   org.bouncycastle:bcprov-jdk18on:jar:1.81:compile -- module org.bouncycastle.provider
    org.flywaydb:flyway-core:jar:11.7.2:compile -- module flyway.core (auto)
    org.flywaydb:flyway-database-postgresql:jar:11.7.2:compile -- module flyway.database.postgresql (auto)
    org.hamcrest:hamcrest:jar:3.0:test -- module org.hamcrest [auto]
    org.hdrhistogram:HdrHistogram:jar:2.2.2:runtime -- module HdrHistogram (auto)
+   org.jetbrains.kotlin:kotlin-stdlib:jar:1.9.25:compile -- module kotlin.stdlib
+   org.jetbrains:annotations:jar:13.0:compile -- module annotations (auto)
+   org.jspecify:jspecify:jar:1.0.0:compile -- module org.jspecify
    org.junit.jupiter:junit-jupiter-api:jar:5.12.2:test -- module org.junit.jupiter.api
    org.junit.jupiter:junit-jupiter-engine:jar:5.12.2:test -- module org.junit.jupiter.engine
    org.junit.jupiter:junit-jupiter-params:jar:5.12.2:test -- module org.junit.jupiter.params
@@ -92,6 +115,7 @@ The following files have been resolved:
    org.springframework:spring-tx:jar:6.2.19:compile -- module spring.tx [auto]
    org.springframework:spring-web:jar:6.2.19:compile -- module spring.web [auto]
    org.springframework:spring-webmvc:jar:6.2.19:compile -- module spring.webmvc [auto]
+   org.xerial.snappy:snappy-java:jar:1.1.10.7:compile -- module snappy.java (auto)
    org.xmlunit:xmlunit-core:jar:2.10.4:test -- module org.xmlunit [auto]
    org.yaml:snakeyaml:jar:2.4:compile -- module org.yaml.snakeyaml
    redis.clients.authentication:redis-authx-core:jar:0.1.1-beta2:compile -- module redis.clients.authentication.core [auto]

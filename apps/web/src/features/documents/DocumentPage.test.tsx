@@ -1,0 +1,46 @@
+// @vitest-environment jsdom
+import {act,cleanup,fireEvent,render,screen,waitFor} from '@testing-library/react';
+import {afterEach,expect,it,vi} from 'vitest';
+import {DocumentPage} from './DocumentPage';
+const project={id:'project-1',name:'索引研究',createdAt:'2026-10-12T00:00:00Z'};
+const session={user:{id:'user-1',email:'user@example.test'},csrfToken:'csrf-1'};
+const doc={documentId:'doc-1',versionId:'v-1',taskId:'t-1',title:'研究.md',state:'PROCESSING',errorCode:null,errorMessage:null,sizeBytes:20,pageCount:null,createdAt:'2026-10-12T00:00:00Z'};
+const response=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,headers:{'Content-Type':'application/json'}});
+afterEach(()=>{cleanup();vi.unstubAllGlobals();vi.useRealTimers();});
+it('uploads multipart with disclosure and only renders returned persisted state',async()=>{
+ let uploaded=false;
+ vi.stubGlobal('fetch',vi.fn(async(path:string,options:RequestInit)=>{
+  if(options.method==='POST'){expect(options.body).toBeInstanceOf(FormData);expect(new Headers(options.headers).get('Content-Type')).toBeNull();expect(new Headers(options.headers).get('X-CSRF-Token')).toBe('csrf-1');uploaded=true;return response({documentId:'doc-1',versionId:'v-1',taskId:'t-1',state:'PROCESSING'},201);}
+  return response(uploaded?[doc]:[]);
+ }));
+ render(<DocumentPage project={project} session={session}/>);
+ await screen.findByText('上传第一份资料');
+ expect(screen.getByText(/配置的模型服务/)).toBeTruthy();
+ fireEvent.change(screen.getByLabelText('资料文件'),{target:{files:[new File(['# 研究'],'研究.md',{type:'text/markdown'})]}});
+ fireEvent.click(screen.getByRole('button',{name:'上传资料'}));
+ await screen.findByText('研究.md');expect(screen.getByText('处理中')).toBeTruthy();expect(screen.queryByText('可用于研究')).toBeNull();
+});
+it('shows server failure and recovery without adding a fake document',async()=>{
+ vi.stubGlobal('fetch',vi.fn(async(_path:string,options:RequestInit)=>options.method==='POST'?response({code:'ENCRYPTED_PDF',message:'不支持加密 PDF，请解密后重新上传。',requestId:'r-1'},400):response([])));
+ render(<DocumentPage project={project} session={session}/>);
+ await screen.findByText('上传第一份资料');
+ fireEvent.change(screen.getByLabelText('资料文件'),{target:{files:[new File(['secret'],'秘密.pdf')]}});
+ fireEvent.click(screen.getByRole('button',{name:'上传资料'}));
+ expect((await screen.findByRole('alert')).textContent).toContain('解密后重新上传');
+ expect(screen.queryByText('秘密.pdf')).toBeNull();expect((screen.getByRole('button',{name:'上传资料'}) as HTMLButtonElement).disabled).toBe(false);
+});
+it('discards a delayed private list when project changes',async()=>{
+ let resolve:(r:Response)=>void=()=>{};
+ vi.stubGlobal('fetch',vi.fn((path:string)=>path.includes('project-1')?new Promise<Response>(r=>resolve=r):Promise.resolve(response([]))));
+ const view=render(<DocumentPage project={project} session={session}/>);
+ view.rerender(<DocumentPage project={{...project,id:'project-2'}} session={session}/>);
+ await screen.findByText('上传第一份资料');
+ await act(async()=>resolve(response([doc])));
+ expect(screen.queryByText('研究.md')).toBeNull();
+});
+it('refreshes persisted failure and renders its reason',async()=>{
+ vi.stubGlobal('fetch',vi.fn(async()=>response([{...doc,state:'FAILED',errorCode:'PARSE_FAILED',errorMessage:'资料无法解析，请检查原文件后重新上传。'}])));
+ render(<DocumentPage project={project} session={session}/>);
+ await screen.findByText('研究.md');expect(screen.getByText('处理失败')).toBeTruthy();expect(screen.getByText(/检查原文件/)).toBeTruthy();
+ fireEvent.click(screen.getByRole('button',{name:'刷新资料状态'}));await waitFor(()=>expect(screen.getByText('处理失败')).toBeTruthy());
+});

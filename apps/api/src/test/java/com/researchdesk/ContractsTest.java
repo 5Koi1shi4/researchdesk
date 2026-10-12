@@ -12,7 +12,7 @@ class ContractsTest {
     private final ObjectMapper mapper = new ObjectMapper();
 
     @ParameterizedTest
-    @ValueSource(classes = {Contracts.TaskState.class, Contracts.RunState.class, Contracts.RunKind.class,
+    @ValueSource(classes = {Contracts.DocumentState.class, Contracts.TaskState.class, Contracts.RunState.class, Contracts.RunKind.class,
                            Contracts.Availability.class, Contracts.EventType.class})
     void unknownEnumsAreRejected(Class<?> type) {
         assertThatThrownBy(() -> mapper.readValue("\"UNKNOWN\"", type))

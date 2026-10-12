@@ -254,3 +254,46 @@ class Project(BaseModel):
     id: UUID
     name: str
     createdAt: AwareDatetime
+
+
+class DocumentState(
+    RootModel[Literal['PROCESSING', 'READY', 'FAILED', 'DELETING', 'DELETED']]
+):
+    root: Literal['PROCESSING', 'READY', 'FAILED', 'DELETING', 'DELETED']
+
+
+class DocumentUpload(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    documentId: UUID
+    versionId: UUID
+    taskId: UUID
+    state: DocumentState
+
+
+class Document(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    documentId: UUID
+    versionId: UUID
+    taskId: UUID
+    title: str
+    state: DocumentState
+    errorCode: str | None
+    errorMessage: str | None
+    sizeBytes: Annotated[int, Field(ge=1, le=20971520)]
+    pageCount: Annotated[int | None, Field(ge=1, le=200)]
+    createdAt: AwareDatetime
+
+
+class DocumentTask(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    taskId: UUID
+    documentVersionId: UUID
+    state: TaskState
+    errorCode: str | None
+    errorMessage: str | None
