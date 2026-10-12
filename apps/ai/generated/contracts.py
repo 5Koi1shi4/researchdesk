@@ -432,3 +432,26 @@ class ReportCreateRequest(BaseModel):
     )
     title: Annotated[str, Field(max_length=200, min_length=1)]
     markdown: Annotated[str, Field(max_length=200000)]
+
+
+class UsageRecord(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    runId: str
+    kind: str
+    state: str
+    mode: str
+    createdAt: str
+    provider: str | None
+    model: str | None
+    currency: str | None
+    priceDate: str | None
+    inputTokens: Annotated[int | None, Field(ge=0)]
+    outputTokens: Annotated[int | None, Field(ge=0)]
+    totalTokens: Annotated[int | None, Field(ge=0)]
+    durationMs: Annotated[int | None, Field(ge=0)]
+    retrievalMs: Annotated[int | None, Field(ge=0)]
+    ttftMs: Annotated[int | None, Field(ge=0)]
+    queueWaitMs: Annotated[int | None, Field(ge=0)]
+    estimatedCost: Annotated[float | None, Field(ge=0.0)]
