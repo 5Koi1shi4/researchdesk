@@ -170,3 +170,19 @@ it.each([
  expect(document.querySelector('.research-current-prompt')?.textContent).toBe('新问题');expect(screen.queryByRole('alert')).toBeNull();
  if(nextState==='RUNNING')expect(secondSignal?.aborted).toBe(false);
 });
+it('creates a REPORT run using frozen selected sources and exposes the completed report action',async()=>{
+ const opened=vi.fn();let body:Record<string,unknown>={};
+ vi.stubGlobal('fetch',vi.fn(async(path:string,options:RequestInit={})=>{
+  if(path.endsWith('/documents'))return response(docs);
+  if(path.startsWith('/api/conversations/'))return response({conversationId:'conv1',projectId:'p1',runs:[]});
+  if(path==='/api/runs'){body=JSON.parse(String(options.body));return response({...snapshot,kind:'REPORT',state:'COMPLETED',text:'报告正文',lastSeq:3});}
+  throw Error(path);
+ }));
+ render(<ResearchPage project={project} session={session} onOpenReports={opened}/>);
+ fireEvent.click(await screen.findByLabelText('资料.md'));
+ fireEvent.change(screen.getByLabelText('研究问题'),{target:{value:'生成研究报告'}});
+ fireEvent.click(screen.getByRole('button',{name:'生成报告'}));
+ fireEvent.click(await screen.findByRole('button',{name:'打开生成的报告'}));
+ expect(body).toMatchObject({kind:'REPORT',projectId:'p1',documentVersionIds:['v1'],prompt:'生成研究报告'});
+ expect(opened).toHaveBeenCalledOnce();
+});

@@ -6,7 +6,7 @@ export function presentCitations(markdown:string,citations:Citation[]) {
  for(const match of markdown.matchAll(markers)){const citation=known.get(match[1]);if(citation&&!seen.has(match[1])){seen.add(match[1]);result.push(citation);}}
  return result;
 }
-export function ReportPreview({markdown,citations}:{markdown:string;citations:Citation[]}){
+export function ReportPreview({markdown,citations,renderSource}:{markdown:string;citations:Citation[];renderSource?:(citation:Citation)=>ReactNode}){
  const [selectedChunkId,setSelectedChunkId]=useState<string|null>(null); const present=presentCitations(markdown,citations);const selected=present.find(c=>c.chunkId===selectedChunkId);const numbers=new Map(present.map((c,i)=>[c.chunkId,i+1]));
  function inline(text:string):ReactNode[]{
   // React text nodes keep raw HTML inert. Images and links remain literal text; no resource URL is visited.
@@ -31,5 +31,6 @@ export function ReportPreview({markdown,citations}:{markdown:string;citations:Ci
   else if(/^>\s?/.test(line))blocks.push(<blockquote key={i}>{inline(line.replace(/^>\s?/,''))}</blockquote>);
   else blocks.push(<p key={i}>{inline(line)}</p>);
  }
- return <><article className="report-preview" aria-label="报告预览">{blocks.length?blocks:<p>开始撰写报告，预览会显示在这里。</p>}{present.length?<section aria-label="引用附录"><h3>引用资料</h3><ol>{present.map(c=><li key={c.chunkId}>{c.title}{c.page!==null?` · 第 ${c.page} 页`:c.paragraph!==null?` · 第 ${c.paragraph} 段`:''}{c.availability==='DELETED'?' · 来源已删除':''}</li>)}</ol></section>:null}</article>{selected?<aside className="report-evidence" aria-label="引用摘录"><h3>{selected.title}</h3><p>{selected.availability==='DELETED'?'来源已删除，原文与摘录无法访问。':'保存时的引用摘录'}</p>{selected.availability==='DELETED'?null:<blockquote>{selected.excerpt||'没有保存摘录。'}</blockquote>}<button className="secondary" onClick={()=>setSelectedChunkId(null)}>关闭摘录</button></aside>:null}</>;
+ return <><article className="report-preview" aria-label="报告预览">{blocks.length?blocks:<p>开始撰写报告，预览会显示在这里。</p>}{present.length?<section aria-label="引用附录"><h3>引用资料</h3><ol>{present.map(c=><li key={c.chunkId}>{c.title}{c.page!==null?` · 第 ${c.page} 页`:c.paragraph!==null?` · 第 ${c.paragraph} 段`:''}{c.availability==='DELETED'?' · 来源已删除':''}</li>)}</ol></section>:null}</article>{selected?<aside className="report-evidence" aria-label="引用摘录"><h3>{selected.title}</h3><p>{selected.availability==='DELETED'?'来源已删除，原文与摘录无法访问。':'保存时的引用摘录'}</p>{selected.availability==='DELETED'?null:renderSource?renderSource(selected):<blockquote>{selected.excerpt||'没有保存摘录。'}</blockquote>}<button className="secondary" onClick={()=>setSelectedChunkId(null)}>关闭摘录</button></aside>:null}</>;
 }
+

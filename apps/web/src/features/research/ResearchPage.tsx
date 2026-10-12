@@ -21,7 +21,7 @@ function HistoricalTurn({entry,select}:{entry:RunSnapshot;select:(citation:Citat
 }
 const message=(e:unknown)=>e instanceof Error?e.message:'连接失败，请重试。';
 function pause(ms:number,signal:AbortSignal){return new Promise<void>(resolve=>{const finish=()=>{clearTimeout(timer);signal.removeEventListener('abort',finish);resolve();};const timer=setTimeout(finish,ms);signal.addEventListener('abort',finish,{once:true});});}
-export function ResearchPage({project,session,renderSource}:{project:Project;session:Session;renderSource?:(citation:Citation)=>ReactNode}) {
+export function ResearchPage({project,session,renderSource,onOpenReports}:{project:Project;session:Session;onOpenReports?:(runId:string)=>void;renderSource?:(citation:Citation)=>ReactNode}) {
  const [documents,setDocuments]=useState<Document[]>([]),[selected,setSelected]=useState<string[]>([]),[prompt,setPrompt]=useState('');
  const [run,setRun]=useState<RunView|null>(null),[snapshot,setSnapshot]=useState<RunSnapshot|null>(null),[source,setSource]=useState<Citation|null>(null);
  const [history,setHistory]=useState<RunSnapshot[]>([]),[historyError,setHistoryError]=useState('');
@@ -114,10 +114,10 @@ export function ResearchPage({project,session,renderSource}:{project:Project;ses
   if(id)void api(`/api/runs/${encodeURIComponent(id)}`).then(value=>{if(currentRequest(epoch,generation,request))attach(parseSnapshot(value),epoch,generation,request);}).catch(e=>{if(currentRequest(epoch,generation,request))setError(message(e));});
   return()=>{scope.current++;controller.current?.abort();};
  },[project.id,session.user.id]);
- async function submit(event:FormEvent){
+ async function submit(event:FormEvent,kind:'ANSWER'|'REPORT'='ANSWER'){
   event.preventDefault();if(starting||(run&&!run.terminal)||!prompt.trim()||!selected.length)return;
   const epoch=scope.current,generation=currentAuthGeneration(),request=++runRequest.current;setStarting(true);setError('');setSource(null);setCancelling(false);
-  const body:components['schemas']['GenerationRequest']={kind:'ANSWER',projectId:project.id,documentVersionIds:selected,prompt:prompt.trim(),...(conversation.current?{conversationId:conversation.current}:{})};
+  const body:components['schemas']['GenerationRequest']={kind,projectId:project.id,documentVersionIds:selected,prompt:prompt.trim(),...(conversation.current?{conversationId:conversation.current}:{})};
   try{const result=parseSnapshot(await api('/api/runs','POST',body,session.csrfToken));if(currentRequest(epoch,generation,request)){attach(result,epoch,generation,request);setPrompt('');}}
   catch(e){if(currentRequest(epoch,generation,request))setError(message(e));}finally{if(currentRequest(epoch,generation,request))setStarting(false);}
  }
@@ -129,15 +129,18 @@ export function ResearchPage({project,session,renderSource}:{project:Project;ses
  const active=starting||Boolean(run&&!run.terminal),verified=run?.status==='COMPLETED';
  return <section className="research-workspace" aria-label="研究工作台">
  <header className="research-heading"><div><p className="eyebrow">有据可循</p><h2>研究工作台</h2></div>{snapshot?<span className="mode-badge">{snapshot.mode==='DEMO'?'演示模式 · 非真实模型':'已配置模型服务'}</span>:<p className="caption">基于所选资料回答</p>}</header>
- <div className="research-columns">
+ <p className="caption">生成时，问题、所选资料片段及必要的会话上下文会发送至配置的模型服务。演示运行不调用真实模型。</p><div className="research-columns">
  <aside className="research-sources" aria-label="资料范围"><h3>01 / 资料范围</h3><p className="caption">只使用本次勾选的已就绪资料。</p>{documents.length?documents.map(d=><label className="research-document" key={d.documentId}><input type="checkbox" aria-label={d.title} checked={selected.includes(d.versionId)} disabled={active||d.state!=='READY'} onChange={e=>setSelected(values=>e.target.checked?[...values,d.versionId]:values.filter(id=>id!==d.versionId))}/><span>{d.title}<small>{d.state==='READY'?'可用于研究':'暂不可用'}</small></span></label>):<p>暂无资料，请先上传并等待处理完成。</p>}</aside>
  <div className="research-conversation"><div className="research-answer" tabIndex={0} aria-label="研究回答">
  {history.length?<section aria-label="已保存的会话记录"><p className="caption">最近 {history.length} 轮历史回答</p>{history.map(entry=><HistoricalTurn key={entry.runId} entry={entry} select={setSource}/>)}</section>:null}{historyError?<p className="error" role="alert">{historyError}</p>:null}
  {run?<><h4 className="research-current-prompt">{snapshot?.prompt}</h4><div className="research-status" role="status">{labels[run.status]}{!run.terminal?` · ${connection}`:''}</div><p className="caption">{verified?'引用已验证':'以下为未验证草稿，不应作为已完成答案。'}</p><div className="answer-text">{run.text?<AnswerText run={run} select={setSource}/>:'正在等待回答内容…'}</div>{run.error?<p className="error" role="alert">{run.error.message}</p>:null}
  {run.citations.length?<div className="research-citations" aria-label="回答引用">{run.citations.map((c,index)=><button key={c.chunkId} className="secondary" disabled={!verified} onClick={()=>setSource(c)} aria-label={`引用 ${index+1}：${c.title}`}>[{index+1}] {c.title}{c.availability==='DELETED'?' · 已删除':''}</button>)}</div>:null}</>:<div className="research-empty"><h3>让结论回到资料</h3><p>选择资料并提出问题。回答完成后，可以逐条查看引用证据。</p></div>}</div>
- {error?<p role="alert" className="error">{error}</p>:null}
+ {verified&&snapshot?.kind==='REPORT'&&onOpenReports?<button onClick={()=>onOpenReports(snapshot.runId)}>打开生成的报告</button>:null}{error?<p role="alert" className="error">{error}</p>:null}
  {run&&!run.terminal&&['连接中断，可恢复当前运行','连接已停止'].includes(connection)?<button className="secondary" onClick={()=>void recover()}>恢复当前运行</button>:null}
- <form onSubmit={submit} className="research-composer"><label htmlFor="research-prompt">研究问题</label><textarea id="research-prompt" rows={3} maxLength={12000} value={prompt} disabled={active} onChange={e=>setPrompt(e.target.value)} placeholder="例如：这些资料对索引策略有哪些共同结论？"/><div className="composer-actions"><span className="caption">已选 {selected.length} 份资料</span>{run&&!run.terminal?<button type="button" className="secondary" disabled={cancelling} onClick={()=>void cancel()}>{cancelling?'正在请求停止…':'停止生成'}</button>:<button disabled={active||!selected.length||!prompt.trim()}>{starting?'正在创建运行…':'开始研究'}</button>}</div>{active?<p className="caption">停止后将保留草稿；供应商仍可能计费。</p>:null}</form></div>
+ <form onSubmit={event=>void submit(event)} className="research-composer"><label htmlFor="research-prompt">研究问题</label><textarea id="research-prompt" rows={3} maxLength={12000} value={prompt} disabled={active} onChange={e=>setPrompt(e.target.value)} placeholder="例如：这些资料对索引策略有哪些共同结论？"/><div className="composer-actions"><span className="caption">已选 {selected.length} 份资料</span>{run&&!run.terminal?<button type="button" className="secondary" disabled={cancelling} onClick={()=>void cancel()}>{cancelling?'正在请求停止…':'停止生成'}</button>:<><button disabled={active||!selected.length||!prompt.trim()}>{starting?'正在创建运行…':'开始研究'}</button><button type="button" className="secondary" disabled={active||!selected.length||!prompt.trim()} onClick={event=>void submit(event,'REPORT')}>生成报告</button></>}</div>{active?<p className="caption">停止后将保留草稿；供应商仍可能计费。</p>:null}</form></div>
  <aside className="research-evidence" aria-label="引用证据"><h3>03 / 引用证据</h3>{source?<><h4>{source.title}</h4>{source.availability==='DELETED'?<p>此来源已删除，无法查看原文。</p>:<><p className="caption">{source.page?`第 ${source.page} 页`:source.paragraph?`第 ${source.paragraph} 段`:'来源片段'}</p>{renderSource?renderSource(source):<><blockquote>{source.excerpt||'此引用未包含摘录。'}</blockquote><p className="caption">引用快照；完整原文预览将在资料模块接入后提供。</p></>}</>}</>:<p className="caption">完成回答后，选择引用按钮查看证据。支持 Tab 和 Enter 键。</p>}</aside>
  </div></section>;
 }
+
+
+

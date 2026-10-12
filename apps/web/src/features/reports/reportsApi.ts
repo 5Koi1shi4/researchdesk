@@ -6,6 +6,7 @@ export type ReportVersion=components['schemas']['ReportVersion'];
 export type ReportExport=components['schemas']['ReportExport'];
 const path=(id:string)=>`/api/reports/${encodeURIComponent(id)}`;
 export const reportsApi={
+ fromRun:(runId:string)=>api<Report>(`/api/runs/${encodeURIComponent(runId)}/report`),
  list:(projectId:string)=>api<Report[]>(`/api/projects/${encodeURIComponent(projectId)}/reports`),
  create:(projectId:string,title:string,csrf:string)=>api<ReportVersion>(`/api/projects/${encodeURIComponent(projectId)}/reports`,'POST',{title,markdown:''},csrf),
  get:(id:string)=>api<Report>(path(id)),history:(id:string)=>api<ReportVersion[]>(`${path(id)}/versions`),version:(id:string,version:number)=>api<ReportVersion>(`${path(id)}/versions/${version}`),
@@ -16,3 +17,4 @@ export const reportsApi={
  download:(id:string,exportId:string)=>`${path(id)}/exports/${encodeURIComponent(exportId)}/download`
 };
 export function allowReportLeave(){const event=new Event('report-before-leave',{cancelable:true});window.dispatchEvent(event);return !event.defaultPrevented;}
+
