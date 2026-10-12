@@ -78,11 +78,11 @@ type GenerationRequest = {
 
 **Interfaces:** 产出 `/api/health`、内部 `/health`、契约生成命令；API 测试脚本接收 `-Test` 和 `-Integration`，分别调用 Maven test 和 verify 并传递筛选条件。
 
-- [ ] 检查 Git、JDK、Node、Python、Docker 实际可用性；使用官方发布和兼容资料确定版本，记录原因、运行时、镜像摘要和锁文件。读取本任务适用的技能后生成最小三个应用。
-- [ ] 先定义健康接口检查：`GET /api/health` 期望 `200 {"status":"UP"}`，依赖不可用的 readiness 期望 503；实际启动前运行应连接失败，不把缺少测试工具当作业务红灯。
-- [ ] 配置 health 与 readiness 区分，加入真实数据库和队列探测；创建同源代理，把 `/api` 转到 Java，其他路径转到前端。
-- [ ] 在 OpenAPI 定义 `GenerationRequest`、`Citation`、`ApiError` 及每种 event payload；生成类型并进行契约校验，未知枚举必须失败。
-- [ ] 运行 `./scripts/test-contracts.ps1` 与 `docker compose -f infra/compose.yaml config`，启动后验证两个 health 接口和依赖断开时 readiness 503。记录实际结果；提交 `chore: bootstrap ResearchDesk services and contracts`。
+- [x] 检查 Git、JDK、Node、Python、Docker 实际可用性；使用官方发布和兼容资料确定版本，记录原因、运行时、镜像摘要和锁文件。读取本任务适用的技能后生成最小三个应用。
+- [x] 先定义健康接口检查：`GET /api/health` 期望 `200 {"status":"UP"}`，依赖不可用的 readiness 期望 503；实际启动前运行应连接失败，不把缺少测试工具当作业务红灯。
+- [x] 配置 health 与 readiness 区分，加入真实数据库和队列探测；创建同源代理，把 `/api` 转到 Java，其他路径转到前端。
+- [x] 在 OpenAPI 定义 `GenerationRequest`、`Citation`、`ApiError` 及每种 event payload；生成类型并进行契约校验，未知枚举必须失败。
+- [x] 运行 `./scripts/test-contracts.ps1` 与 `docker compose -f infra/compose.yaml config`，启动后验证两个 health 接口和依赖断开时 readiness 503。记录实际结果；提交 `chore: bootstrap ResearchDesk services and contracts`。
 
 ### Task 2：身份及项目所有权
 
