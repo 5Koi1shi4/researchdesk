@@ -19,3 +19,5 @@ Bundled font source: https://raw.githubusercontent.com/notofonts/noto-cjk/main/S
 Pending integration: generation sibling must call report seam with its committed provider/retrieval interfaces; Java immutable history/ownership and browser journey verified by their owners. Isolated Docker acceptance is orchestrator-owned. No production readiness or real-model score claimed.
 
 Final frozen font SHA256: F3CC47217191067100906EA2BFDC467F8E3E1465CAF835A8A4A8CFCADBC1381B. Regular instance visual recheck on page 2 confirms repeated header and readable row 30–61 without clipping. Renderer metadata retains upstream Thin name; actual frozen outlines use wght400. PDF production uses no fonttools runtime dependency.
+
+Latest verification 2026-10-12: same targeted pytest command => 13 passed, one upstream deprecation warning, 4.80s. Includes stalled provider stream deadline, malformed/no citations and 200000 character bound. Commits 36c6707 and bd1aa93. asyncio.timeout enforces provider stream wall deadline independently of provider implementation.
