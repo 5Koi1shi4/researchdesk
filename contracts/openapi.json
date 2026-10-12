@@ -1,0 +1,521 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "ResearchDesk boundary contracts",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/api/health": {
+      "get": {
+        "operationId": "apiHealth",
+        "responses": {
+          "200": {
+            "description": "Service is alive",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Health"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ready": {
+      "get": {
+        "operationId": "apiReadiness",
+        "responses": {
+          "200": {
+            "description": "Service is alive",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Health"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Database or queue unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Health"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "operationId": "internalAiHealth",
+        "responses": {
+          "200": {
+            "description": "Service is alive",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Health"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "TaskState": {
+        "type": "string",
+        "enum": [
+          "QUEUED",
+          "RUNNING",
+          "SUCCEEDED",
+          "FAILED",
+          "CANCELLED"
+        ]
+      },
+      "RunState": {
+        "type": "string",
+        "enum": [
+          "QUEUED",
+          "RUNNING",
+          "COMPLETED",
+          "FAILED",
+          "CANCELLED"
+        ]
+      },
+      "RunKind": {
+        "type": "string",
+        "enum": [
+          "ANSWER",
+          "REPORT"
+        ]
+      },
+      "Availability": {
+        "type": "string",
+        "enum": [
+          "AVAILABLE",
+          "DELETED"
+        ]
+      },
+      "ApiError": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message",
+          "requestId"
+        ],
+        "additionalProperties": false
+      },
+      "Health": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "UP",
+              "DOWN"
+            ]
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "additionalProperties": false
+      },
+      "Citation": {
+        "type": "object",
+        "properties": {
+          "chunkId": {
+            "type": "string"
+          },
+          "documentVersionId": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "page": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1
+          },
+          "paragraph": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1
+          },
+          "excerpt": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "availability": {
+            "$ref": "#/components/schemas/Availability"
+          }
+        },
+        "required": [
+          "chunkId",
+          "documentVersionId",
+          "title",
+          "page",
+          "paragraph",
+          "excerpt",
+          "availability"
+        ],
+        "additionalProperties": false
+      },
+      "GenerationRequest": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/RunKind"
+          },
+          "projectId": {
+            "type": "string"
+          },
+          "conversationId": {
+            "type": "string"
+          },
+          "documentVersionIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "prompt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "projectId",
+          "documentVersionIds",
+          "prompt"
+        ],
+        "additionalProperties": false
+      },
+      "InternalTask": {
+        "type": "object",
+        "properties": {
+          "taskId": {
+            "type": "string"
+          },
+          "attemptId": {
+            "type": "string"
+          },
+          "projectId": {
+            "type": "string"
+          },
+          "documentVersionId": {
+            "type": "string"
+          },
+          "objectKey": {
+            "type": "string"
+          },
+          "parserVersion": {
+            "type": "string"
+          },
+          "fence": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "taskId",
+          "attemptId",
+          "projectId",
+          "documentVersionId",
+          "objectKey",
+          "parserVersion",
+          "fence"
+        ],
+        "additionalProperties": false
+      },
+      "StartedPayload": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/RunKind"
+          }
+        },
+        "required": [
+          "kind"
+        ],
+        "additionalProperties": false
+      },
+      "StartedEvent": {
+        "type": "object",
+        "properties": {
+          "runId": {
+            "type": "string"
+          },
+          "seq": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "type": {
+            "type": "string",
+            "const": "started"
+          },
+          "payload": {
+            "$ref": "#/components/schemas/StartedPayload"
+          }
+        },
+        "required": [
+          "runId",
+          "seq",
+          "type",
+          "payload"
+        ],
+        "additionalProperties": false
+      },
+      "DeltaPayload": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "additionalProperties": false
+      },
+      "DeltaEvent": {
+        "type": "object",
+        "properties": {
+          "runId": {
+            "type": "string"
+          },
+          "seq": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "type": {
+            "type": "string",
+            "const": "delta"
+          },
+          "payload": {
+            "$ref": "#/components/schemas/DeltaPayload"
+          }
+        },
+        "required": [
+          "runId",
+          "seq",
+          "type",
+          "payload"
+        ],
+        "additionalProperties": false
+      },
+      "CitationPayload": {
+        "type": "object",
+        "properties": {
+          "citation": {
+            "$ref": "#/components/schemas/Citation"
+          }
+        },
+        "required": [
+          "citation"
+        ],
+        "additionalProperties": false
+      },
+      "CitationEvent": {
+        "type": "object",
+        "properties": {
+          "runId": {
+            "type": "string"
+          },
+          "seq": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "type": {
+            "type": "string",
+            "const": "citation"
+          },
+          "payload": {
+            "$ref": "#/components/schemas/CitationPayload"
+          }
+        },
+        "required": [
+          "runId",
+          "seq",
+          "type",
+          "payload"
+        ],
+        "additionalProperties": false
+      },
+      "CompletedPayload": {
+        "type": "object",
+        "properties": {
+          "state": {
+            "type": "string",
+            "const": "COMPLETED"
+          }
+        },
+        "required": [
+          "state"
+        ],
+        "additionalProperties": false
+      },
+      "CompletedEvent": {
+        "type": "object",
+        "properties": {
+          "runId": {
+            "type": "string"
+          },
+          "seq": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "type": {
+            "type": "string",
+            "const": "completed"
+          },
+          "payload": {
+            "$ref": "#/components/schemas/CompletedPayload"
+          }
+        },
+        "required": [
+          "runId",
+          "seq",
+          "type",
+          "payload"
+        ],
+        "additionalProperties": false
+      },
+      "FailedPayload": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "additionalProperties": false
+      },
+      "FailedEvent": {
+        "type": "object",
+        "properties": {
+          "runId": {
+            "type": "string"
+          },
+          "seq": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "type": {
+            "type": "string",
+            "const": "failed"
+          },
+          "payload": {
+            "$ref": "#/components/schemas/FailedPayload"
+          }
+        },
+        "required": [
+          "runId",
+          "seq",
+          "type",
+          "payload"
+        ],
+        "additionalProperties": false
+      },
+      "CancelledPayload": {
+        "type": "object",
+        "properties": {
+          "state": {
+            "type": "string",
+            "const": "CANCELLED"
+          }
+        },
+        "required": [
+          "state"
+        ],
+        "additionalProperties": false
+      },
+      "CancelledEvent": {
+        "type": "object",
+        "properties": {
+          "runId": {
+            "type": "string"
+          },
+          "seq": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "type": {
+            "type": "string",
+            "const": "cancelled"
+          },
+          "payload": {
+            "$ref": "#/components/schemas/CancelledPayload"
+          }
+        },
+        "required": [
+          "runId",
+          "seq",
+          "type",
+          "payload"
+        ],
+        "additionalProperties": false
+      },
+      "RunEvent": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/StartedEvent"
+          },
+          {
+            "$ref": "#/components/schemas/DeltaEvent"
+          },
+          {
+            "$ref": "#/components/schemas/CitationEvent"
+          },
+          {
+            "$ref": "#/components/schemas/CompletedEvent"
+          },
+          {
+            "$ref": "#/components/schemas/FailedEvent"
+          },
+          {
+            "$ref": "#/components/schemas/CancelledEvent"
+          }
+        ],
+        "discriminator": {
+          "propertyName": "type",
+          "mapping": {
+            "started": "#/components/schemas/StartedEvent",
+            "delta": "#/components/schemas/DeltaEvent",
+            "citation": "#/components/schemas/CitationEvent",
+            "completed": "#/components/schemas/CompletedEvent",
+            "failed": "#/components/schemas/FailedEvent",
+            "cancelled": "#/components/schemas/CancelledEvent"
+          }
+        }
+      }
+    }
+  }
+}

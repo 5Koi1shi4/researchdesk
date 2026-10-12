@@ -1,0 +1,33 @@
+spring:
+  application:
+    name: researchdesk-api
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:15432/researchdesk}
+    username: ${DATABASE_USER:researchdesk}
+    password: ${DATABASE_PASSWORD:researchdesk-dev-only}
+    hikari:
+      minimum-idle: 0
+      initialization-fail-timeout: -1
+      connection-timeout: 2000
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:16379}
+      connect-timeout: 2s
+      timeout: 2s
+management:
+  endpoints:
+    web:
+      base-path: /internal/actuator
+      exposure:
+        include: health
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never
+      group:
+        readiness:
+          include: readinessState,db,redis
+        liveness:
+          include: livenessState

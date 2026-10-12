@@ -1,0 +1,172 @@
+{
+  "TaskState": [
+    "QUEUED",
+    "RUNNING",
+    "SUCCEEDED",
+    "FAILED",
+    "CANCELLED"
+  ],
+  "RunState": [
+    "QUEUED",
+    "RUNNING",
+    "COMPLETED",
+    "FAILED",
+    "CANCELLED"
+  ],
+  "RunKind": [
+    "ANSWER",
+    "REPORT"
+  ],
+  "ApiError": [
+    {
+      "code": "DEPENDENCY_UNAVAILABLE",
+      "message": "Unavailable",
+      "requestId": "req1"
+    }
+  ],
+  "Citation": [
+    {
+      "chunkId": "c1",
+      "documentVersionId": "v1",
+      "title": "Paper",
+      "page": null,
+      "paragraph": 2,
+      "excerpt": null,
+      "availability": "AVAILABLE"
+    }
+  ],
+  "GenerationRequest": [
+    {
+      "kind": "ANSWER",
+      "projectId": "p1",
+      "documentVersionIds": [
+        "v1"
+      ],
+      "prompt": "Summarize"
+    },
+    {
+      "kind": "REPORT",
+      "projectId": "p1",
+      "conversationId": "conv1",
+      "documentVersionIds": [
+        "v1"
+      ],
+      "prompt": "Report"
+    }
+  ],
+  "InternalTask": [
+    {
+      "taskId": "t1",
+      "attemptId": "a1",
+      "fence": 1,
+      "projectId": "p1",
+      "documentVersionId": "v1",
+      "objectKey": "original/v1.pdf",
+      "parserVersion": "1"
+    }
+  ],
+  "RunEvent": [
+    {
+      "runId": "r1",
+      "seq": 1,
+      "type": "started",
+      "payload": {
+        "kind": "ANSWER"
+      }
+    },
+    {
+      "runId": "r1",
+      "seq": 2,
+      "type": "delta",
+      "payload": {
+        "text": "Evidence"
+      }
+    },
+    {
+      "runId": "r1",
+      "seq": 3,
+      "type": "citation",
+      "payload": {
+        "citation": {
+          "chunkId": "c1",
+          "documentVersionId": "v1",
+          "title": "Paper",
+          "page": null,
+          "paragraph": 2,
+          "excerpt": null,
+          "availability": "AVAILABLE"
+        }
+      }
+    },
+    {
+      "runId": "r1",
+      "seq": 4,
+      "type": "completed",
+      "payload": {
+        "state": "COMPLETED"
+      }
+    },
+    {
+      "runId": "r1",
+      "seq": 5,
+      "type": "failed",
+      "payload": {
+        "error": {
+          "code": "DEPENDENCY_UNAVAILABLE",
+          "message": "Unavailable",
+          "requestId": "req1"
+        }
+      }
+    },
+    {
+      "runId": "r1",
+      "seq": 6,
+      "type": "cancelled",
+      "payload": {
+        "state": "CANCELLED"
+      }
+    }
+  ],
+  "StartedPayload": [
+    {
+      "kind": "ANSWER"
+    }
+  ],
+  "DeltaPayload": [
+    {
+      "text": "Evidence"
+    }
+  ],
+  "CitationPayload": [
+    {
+      "citation": {
+        "chunkId": "c1",
+        "documentVersionId": "v1",
+        "title": "Paper",
+        "page": null,
+        "paragraph": 2,
+        "excerpt": null,
+        "availability": "AVAILABLE"
+      }
+    }
+  ],
+  "CompletedPayload": [
+    {
+      "state": "COMPLETED"
+    }
+  ],
+  "FailedPayload": [
+    {
+      "error": {
+        "code": "DEPENDENCY_UNAVAILABLE",
+        "message": "Unavailable",
+        "requestId": "req1"
+      }
+    }
+  ],
+  "CancelledPayload": [
+    {
+      "state": "CANCELLED"
+    }
+  ]
+}
