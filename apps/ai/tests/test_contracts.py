@@ -10,6 +10,17 @@ CONTRACT = json.loads((Path(__file__).parents[3] / "contracts/openapi.json").rea
 EXAMPLES = json.loads((Path(__file__).parents[3] / "contracts/examples.json").read_text())
 
 
+def test_optional_conversation_id_can_be_omitted_but_cannot_be_null():
+    omitted = EXAMPLES["GenerationRequest"][0]
+    assert contracts.GenerationRequest.model_validate(omitted).model_dump(mode="json", exclude_unset=True) == omitted
+    explicit_null = {**omitted, "conversationId": None}
+    validator = Draft202012Validator({"$ref": "#/components/schemas/GenerationRequest", **CONTRACT})
+    assert not validator.is_valid(explicit_null)
+    assert not Draft202012Validator(contracts.GenerationRequest.model_json_schema()).is_valid(explicit_null)
+    with pytest.raises(ValidationError):
+        contracts.GenerationRequest.model_validate(explicit_null)
+
+
 @pytest.mark.parametrize("name", ["TaskState", "RunState", "RunKind"])
 def test_schema_rejects_unknown_enum(name):
     validator = Draft202012Validator({"$ref": f"#/components/schemas/{name}", **CONTRACT})

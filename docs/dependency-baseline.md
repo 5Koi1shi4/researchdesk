@@ -17,6 +17,8 @@
 
 Liveness excludes external dependencies; readiness explicitly includes the real database and Redis because this project's required operations need both. This follows the distinction in the [Spring Boot probe documentation](https://docs.spring.io/spring-boot/3.5/reference/actuator/endpoints.html). Java uses bounded Hikari/Redis timeouts and Python uses bounded psycopg/Redis timeouts; an outage produces 503 without turning liveness into a failure.
 
+The Python generation pipeline prepares a temporary copy with explicit generator nullability hints derived from the authoritative OpenAPI 3.1 property validation. This compensates for datamodel-code-generator0.53 treating omitted optional fields as nullable: `conversationId` remains omittable while supplied null is rejected by Pydantic and its generated JSON Schema. The canonical OpenAPI is unchanged. Negative checks enforce the same boundary in Python/JSON Schema/TypeScript.
+
 ## Locks and immutable images
 
 `apps/web/package-lock.json` locks direct/transitive npm packages with integrity hashes. `apps/ai/uv.lock` locks production and test packages and hashes; `requirements.lock` exports production dependencies for hash-checked offline container installation. The `uv` tool used to resolve/export is pinned to 0.13.0 in setup. Maven pins Boot's parent/BOM, wrapper/distribution, and inherited plugin versions; `apps/api/dependencies.lock` is a sorted audit snapshot of resolved coordinates (not a Maven-enforced lockfile).

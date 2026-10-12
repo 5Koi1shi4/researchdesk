@@ -63,7 +63,7 @@ class GenerationRequest(BaseModel):
     )
     kind: RunKind
     projectId: str
-    conversationId: str | None = None
+    conversationId: str = None
     documentVersionIds: list[str]
     prompt: str
 

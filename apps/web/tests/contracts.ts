@@ -10,6 +10,8 @@ const badKind: Schemas['RunKind'] = 'UNKNOWN';
 const badRun: Schemas['RunState'] = 'SUCCEEDED';
 // @ts-expect-error Unknown task states must fail.
 const badTask: Schemas['TaskState'] = 'UNKNOWN';
+// @ts-expect-error Optional conversationId may be omitted, but supplied null is invalid.
+const nullConversation: Schemas['GenerationRequest'] = {kind: 'ANSWER', projectId: 'p1', documentVersionIds: ['v1'], prompt: 'Summarize', conversationId: null};
 // @ts-expect-error Delta payload requires text.
 const badEvent: Schemas['RunEvent'] = {runId: 'r1', seq: 1, type: 'delta', payload: {state: 'COMPLETED'}};
-void [valid, event, badKind, badRun, badTask, badEvent];
+void [valid, event, badKind, badRun, badTask, nullConversation, badEvent];
