@@ -11,6 +11,7 @@ from fastapi import APIRouter, Header, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field
 from generated.contracts import RunEvent
+from .envelope import split_internal_event
 from .answer import stream_answer, retrieve
 from .provider import ProviderError, configured_provider, check_deadline, usage_snapshot
 from .prompts import build_messages
@@ -85,6 +86,7 @@ async def generation_stream(body: InternalGeneration, authorization: str | None 
                 telemetry['durationMs']=int((time.monotonic()-started)*1000)
                 packet['usage']=dict(telemetry)
                 logging.getLogger('uvicorn.error.generation').info('generation runId=%s state=%s durationMs=%s retrievalMs=%s ttftMs=%s', body.runId,kind,telemetry['durationMs'],telemetry.get('retrievalMs'),telemetry.get('ttftMs'))
+            split_internal_event(packet)
             return json.dumps(packet,ensure_ascii=False)+'\n'
         yield encode('started',{'kind':body.kind})
         try:

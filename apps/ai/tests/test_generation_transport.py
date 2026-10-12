@@ -45,10 +45,19 @@ def test_internal_route_rejects_untrusted_caller(monkeypatch):
 
 def test_internal_route_emits_canonical_ordered_events(monkeypatch):
     from generated.contracts import RunEvent
+    from generation.envelope import split_internal_event
     monkeypatch.setenv('INTERNAL_SERVICE_TOKEN','secret')
     response=TestClient(app).post('/internal/generation/stream',json=request(),headers={'Authorization':'Bearer secret'})
     assert response.status_code==200
-    events=[RunEvent.model_validate_json(line).model_dump(mode='json') for line in response.text.splitlines()]
+    packets=[json.loads(line) for line in response.text.splitlines()]
+    validated=[split_internal_event(packet) for packet in packets]
+    events=[event.model_dump(mode='json') for event, usage in validated]
+    assert validated[-1][1].mode=='DEMO'
+    assert validated[-1][1].inputTokens is None
+    assert validated[-1][1].durationMs >= 0
+    assert all(usage is None for event,usage in validated[:-1])
+    assert all('usage' not in event for event in events)
+    with pytest.raises(ValueError): RunEvent.model_validate(packets[-1])
     assert [e['seq'] for e in events]==[1,2,3]
     assert [e['type'] for e in events]==['started','delta','completed']
 
@@ -121,3 +130,18 @@ def test_absolute_deadline_closes_trickling_partial_sse_line():
             list(provider.stream([],2000,time.monotonic()+.2))
         assert time.perf_counter()-started<.5, 'Trickled bytes must not extend the absolute deadline'
     finally:server.shutdown();thread.join();server.server_close()
+
+
+@pytest.mark.parametrize('change', [{'inputTokens':-1},{'inputTokens':True},{'inputTokens':'5'},{'secret':'credential'},{'mode':'UNVERIFIED'}])
+def test_internal_envelope_rejects_invalid_private_metadata(change):
+    from generation.envelope import split_internal_event
+    usage={'provider':'demo','model':None,'mode':'DEMO','inputTokens':None,'outputTokens':None,'totalTokens':None,**change}
+    with pytest.raises(ValueError):
+        split_internal_event({'runId':'r','seq':1,'type':'completed','payload':{'state':'COMPLETED'},'usage':usage})
+
+
+def test_internal_envelope_does_not_allow_nonterminal_usage_or_unknown_public_fields():
+    from generation.envelope import split_internal_event
+    usage={'provider':'demo','model':None,'mode':'DEMO','inputTokens':None,'outputTokens':None,'totalTokens':None}
+    with pytest.raises(ValueError): split_internal_event({'runId':'r','seq':1,'type':'delta','payload':{'text':'hi'},'usage':usage})
+    with pytest.raises(ValueError): split_internal_event({'runId':'r','seq':1,'type':'completed','payload':{'state':'COMPLETED'},'usage':usage,'secret':'bad'})

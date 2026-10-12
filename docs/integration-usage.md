@@ -28,3 +28,13 @@ Implemented 2026-10-12. No real provider credentials or paid requests used.
 ## Integration handoff
 
 `UsageIT` contains real HTTP/PostgreSQL checks for cancelled usage idempotency, owner isolation, actual no-evidence demo completion, and privacy. It inherits the existing RunRecoveryIT checks. Run against the coordinator's isolated integration runtime after rebuilding the API/AI and applying V010; not executed by this worker. No Docker fault injection was performed. Contract generation is coordinated centrally after all OpenAPI additions. ProjectPage mounting is owned by the experience worker.
+
+## Internal envelope boundary correction (2026-10-12)
+
+The private Java/Python NDJSON frame is the strict public RunEvent plus an optional top-level `usage` object **only on completed/failed/cancelled**. Legacy/fault fixtures without usage remain supported and produce unknown values. Public RunEvent and browser SSE schemas are unchanged.
+
+`generation/envelope.py` and Java `InternalGenerationEvent` independently validate this extension: required provider/model/mode and nullable input/output/total counts; optional nullable duration/retrieval/TTFT milliseconds; no unknown fields; only demo/openai-compatible providers and DEMO/REAL modes; counts/timings are nonnegative safe integers (not booleans, strings or floats). Java returns a separate typed public event after removing usage; only that public event's payload enters the durable browser event stream. Invalid envelopes fail closed.
+
+The old transport test incorrectly passed the entire private frame to public RunEvent validation. Reproduced its `completed.usage: extra_forbidden` failure, then replaced that assertion with explicit private validation **and** strict validation of the separated public event. Added invalid-metadata/nonterminal/unknown-public-field rejection tests, and a Java regression asserting public serialized event has exactly four fields and no usage. No public contract permissiveness or assertions were removed.
+
+Correction verification: full `pytest apps/ai/tests -m 'not integration' -q`: **131 passed, 11 deselected** (26.04s); focused Java `InternalGenerationEventTest,UsageServiceTest,RunEventValidatorTest`: **8 passed**. Targeted Python transport+usage: **26 passed**. Public OpenAPI/generated contracts unchanged, so regeneration is unnecessary for this fix.
