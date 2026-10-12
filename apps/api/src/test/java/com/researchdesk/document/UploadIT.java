@@ -62,6 +62,7 @@ class UploadIT {
     }
     @AfterEach void cleanup() throws Exception {
         for(String email:emails) {
+            sql("DELETE FROM retrieval.index_versions WHERE project_id IN (SELECT id FROM business.projects WHERE owner_id=(SELECT id FROM business.users WHERE email='"+email+"'))");
             String projects=sql("SELECT id FROM business.projects WHERE owner_id=(SELECT id FROM business.users WHERE email='"+email+"')");
             for(String id:projects.split("\\R"))if(!id.isBlank()){minio("mc rm --recursive --force local/researchdesk-documents/projects/"+id+"/");sql("DELETE FROM business.storage_cleanup WHERE object_key LIKE 'projects/"+id+"/%'");}
             sql("DELETE FROM business.users WHERE email='"+email+"'; DELETE FROM business.auth_throttles WHERE key='email:"+email+"';");
@@ -127,20 +128,23 @@ class UploadIT {
         error(upload(p,"many.pdf",pdf(201,false,true),s),400,"PDF_PAGE_LIMIT");
         error(upload(p,"scan.pdf",pdf(1,false,false),s),400,"DOCUMENT_NO_TEXT");
         var valid=upload(p,"valid.pdf",pdf(200,false,true),s);assertThat(valid.status()).as(valid.body().toString()).isEqualTo(201);
+        long deadline=System.nanoTime()+java.time.Duration.ofSeconds(30).toNanos();
+        while(!request("GET","/api/projects/"+p+"/tasks/"+valid.body().get("taskId").asText(),null,s).body().get("state").asText().equals("SUCCEEDED")){assertThat(System.nanoTime()).as("200-page real worker completion").isLessThan(deadline);Thread.sleep(250);}
+        assertThat(sql("SELECT chunk_count FROM retrieval.index_versions WHERE document_version_id='"+valid.body().get("versionId").asText()+"'")).isEqualTo("200");
     }
     @Test void sameProjectConcurrentUploadsShareOneDocumentTaskAndOutbox() throws Exception {
         var s=register();String p=project(s);byte[] content="# Same document".getBytes(StandardCharsets.UTF_8);
         var a=CompletableFuture.supplyAsync(()->{try{return upload(p,"a.md",content,s);}catch(Exception e){throw new RuntimeException(e);}});
         var b=CompletableFuture.supplyAsync(()->{try{return upload(p,"b.md",content,s);}catch(Exception e){throw new RuntimeException(e);}});
         var ra=a.get();var rb=b.get();assertThat(ra.status()).isIn(200,201);assertThat(rb.status()).isIn(200,201);
-        assertThat(ra.body()).isEqualTo(rb.body());assertThat(ra.body().get("state").asText()).isEqualTo("PROCESSING");
+        assertThat(ra.body().get("documentId")).isEqualTo(rb.body().get("documentId"));assertThat(ra.body().get("taskId")).isEqualTo(rb.body().get("taskId"));assertThat(ra.body().get("state").asText()).isIn("PROCESSING","READY");
         assertThat(request("GET","/api/projects/"+p+"/documents",null,s).body()).hasSize(1);
         String key=sql("SELECT object_key FROM business.document_versions WHERE project_id='"+p+"'");
         assertThat(minio("mc cat local/researchdesk-documents/"+key)).isEqualTo("# Same document");
         assertThat(sql("SELECT count(*) FROM business.storage_cleanup WHERE object_key LIKE 'projects/"+p+"/%'")).isEqualTo("0");
         assertThat(minio("mc ls --recursive local/researchdesk-documents/projects/"+p+"/").lines().count()).isEqualTo(1);
         String t=ra.body().get("taskId").asText();
-        assertThat(request("GET","/api/projects/"+p+"/tasks/"+t,null,s).body().get("state").asText()).isEqualTo("QUEUED");
+        assertThat(request("GET","/api/projects/"+p+"/tasks/"+t,null,s).body().get("state").asText()).isIn("QUEUED","RUNNING","SUCCEEDED");
         assertThat(sql("SELECT count(*) FROM business.outbox WHERE task_id='"+t+"'")).isEqualTo("1");
         var foreign=register(); error(request("GET","/api/projects/"+p+"/documents",null,foreign),404,"PROJECT_NOT_FOUND");
         error(request("GET","/api/projects/"+p+"/tasks/"+t,null,foreign),404,"PROJECT_NOT_FOUND");

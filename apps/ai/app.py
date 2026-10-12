@@ -1,11 +1,22 @@
 import os
+import threading
+from contextlib import asynccontextmanager
 
 import psycopg
 import redis
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 
-app = FastAPI(title="ResearchDesk internal AI service")
+@asynccontextmanager
+async def lifespan(app):
+    from worker.consumer import consume
+    stop=threading.Event()
+    thread=threading.Thread(target=consume,args=(stop,),name='ingestion-consumer',daemon=True)
+    thread.start()
+    yield
+    stop.set();thread.join(timeout=6)
+
+app = FastAPI(title="ResearchDesk internal AI service",lifespan=lifespan)
 
 
 @app.get("/health")

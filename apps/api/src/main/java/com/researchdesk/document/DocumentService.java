@@ -30,6 +30,7 @@ public class DocumentService {
   try(var valid=validator.validate(file)){
    UUID version=UUID.randomUUID(),document=UUID.randomUUID(),task=UUID.randomUUID(),attempt=UUID.randomUUID();
    String key="projects/"+project+"/versions/"+version;
+   try(var objectLock=lockObject(key)){
    // Autocommitted before object storage. A crash or rollback leaves a durable cleanup entry.
    db.update("INSERT INTO business.storage_cleanup(object_key) VALUES (?)",key);
    try {
@@ -41,10 +42,10 @@ public class DocumentService {
      if(!existing.isEmpty())return new Accepted(existing.get(0),true);
      if(db.queryForObject("SELECT count(*) FROM business.documents WHERE project_id=? AND state<>'DELETED'",Integer.class,project)>=quota)throw new ApiFailure(409,"DOCUMENT_QUOTA","项目资料数量已达上限（最多 50 份），请使用其他项目。");
      db.update("INSERT INTO business.documents(id,project_id,title,content_sha256,state) VALUES (?,?,?,?,'PROCESSING')",document,project,valid.title(),valid.digest());
-     db.update("INSERT INTO business.document_versions(id,document_id,project_id,object_key,media_type,size_bytes,page_count,parser_version) VALUES (?,?,?,?,?,?,?,'pdfbox-3.0.7-markdown-v1')",version,document,project,key,valid.mediaType(),valid.size(),valid.pages());
+     db.update("INSERT INTO business.document_versions(id,document_id,project_id,object_key,media_type,size_bytes,page_count,parser_version) VALUES (?,?,?,?,?,?,?,'pypdf-6.12.2-markdown-v1')",version,document,project,key,valid.mediaType(),valid.size(),valid.pages());
      db.update("INSERT INTO business.tasks(id,project_id,document_version_id,attempt_id,state) VALUES (?,?,?,?,'QUEUED')",task,project,version,attempt);
      try {
-      String payload=json.writeValueAsString(new Contracts.InternalTask(task.toString(),attempt.toString(),1,project.toString(),version.toString(),key,"pdfbox-3.0.7-markdown-v1"));
+      String payload=json.writeValueAsString(new Contracts.InternalTask(task.toString(),attempt.toString(),1,project.toString(),version.toString(),key,"pypdf-6.12.2-markdown-v1"));
       db.update("INSERT INTO business.outbox(id,task_id,event_type,payload) VALUES (?,?,'DOCUMENT_PARSE_REQUESTED',?::jsonb)",UUID.randomUUID(),task,payload);
      }catch(com.fasterxml.jackson.core.JsonProcessingException e){throw new IllegalStateException(e);}
      db.update("DELETE FROM business.storage_cleanup WHERE object_key=?",key);
@@ -53,7 +54,14 @@ public class DocumentService {
     if(result.duplicate())compensate(key);
     return result;
    }catch(RuntimeException e){compensate(key);if(e instanceof ApiFailure)throw e;throw new ApiFailure(503,"UPLOAD_UNAVAILABLE","资料保存暂时失败，请稍后重新上传。");}
+   }
   }catch(java.io.IOException e){throw new ApiFailure(503,"UPLOAD_UNAVAILABLE","上传暂时不可用，请稍后重试。");}
+ }
+ private ObjectLock lockObject(String key){try{return new ObjectLock(Objects.requireNonNull(db.getDataSource()).getConnection(),key);}catch(java.sql.SQLException e){throw new ApiFailure(503,"UPLOAD_UNAVAILABLE","上传暂时不可用，请稍后重试。");}}
+ private static final class ObjectLock implements AutoCloseable {
+  private final java.sql.Connection connection;private final String key;
+  ObjectLock(java.sql.Connection connection,String key)throws java.sql.SQLException{this.connection=connection;this.key=key;try(var q=connection.prepareStatement("SELECT pg_advisory_lock(hashtextextended(?,0))")){q.setString(1,key);q.execute();}catch(java.sql.SQLException e){connection.close();throw e;}}
+  public void close(){try{try(var q=connection.prepareStatement("SELECT pg_advisory_unlock(hashtextextended(?,0))")){q.setString(1,key);q.execute();}}catch(java.sql.SQLException e){try{connection.abort(Runnable::run);}catch(java.sql.SQLException ignored){}}finally{try{connection.close();}catch(java.sql.SQLException ignored){}}}
  }
  private void compensate(String key) {try{if(db.queryForObject("SELECT count(*) FROM business.document_versions WHERE object_key=?",Integer.class,key)>0){db.update("DELETE FROM business.storage_cleanup WHERE object_key=?",key);return;}storage.delete(key);db.update("DELETE FROM business.storage_cleanup WHERE object_key=?",key);}catch(RuntimeException ignored){/* Durable intent remains available for later cleanup. */}}
  public List<Document> list(UUID project,UUID owner){

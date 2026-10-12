@@ -25,11 +25,18 @@ export function DocumentPage({project,session}:{project:Project;session:Session}
   }catch(e){if(current())setUploadError(e instanceof Error?e.message:'上传失败，请检查连接后重试。');}
   finally{if(current())setBusy(false);}
  }
+ async function retry(document:Document) {
+  const epoch=scope.current,generation=currentAuthGeneration();const current=()=>epoch===scope.current&&generation===currentAuthGeneration();
+  setBusy(true);setUploadError('');
+  try{await api(`/api/projects/${project.id}/tasks/${document.taskId}/retry`,'POST',{},session.csrfToken);if(current())await refresh();}
+  catch(e){if(current())setUploadError(e instanceof Error?e.message:'重试暂时失败，请稍后再试。');}
+  finally{if(current())setBusy(false);}
+ }
  return <section className="documents" aria-label="项目资料"><div className="documents-heading"><h2>项目资料</h2><button className="secondary" onClick={()=>void refresh()} disabled={busy}>刷新资料状态</button></div>
  <form className="upload-form" onSubmit={upload}><p id="upload-disclosure">上传的资料将用于你配置的模型服务。请确认你有权上传并使用这些内容。</p><p className="caption" id="upload-limits">支持含文字的 PDF（最多 200 页）和 UTF-8 Markdown。单文件最大 20 MiB，每项目最多 50 份；部署设置可能更严格。不支持扫描件 OCR。</p>
  <label htmlFor="document-file">资料文件</label><input ref={input} id="document-file" type="file" accept=".pdf,.md,.markdown" aria-describedby="upload-disclosure upload-limits" disabled={busy} onChange={e=>{setFile(e.target.files?.[0]??null);setUploadError('');setNotice('');}}/>
  <button type="submit" disabled={busy||!file}>{busy?'正在上传…':'上传资料'}</button></form>
  {uploadError?<p role="alert" className="error">{uploadError}</p>:null}{listError?<p role="alert" className="error">{listError}</p>:null}{notice?<p role="status" className="upload-notice">{notice}</p>:null}
- {loading?<p role="status">正在加载资料…</p>:documents.length===0?<section className="empty-state"><h3>上传第一份资料</h3><p>选择研究所需的原始资料，随后在这里查看处理状态。</p></section>:<ul className="document-list">{documents.map(d=><li key={d.documentId}><div><h3>{d.title}</h3><p className="caption">{(d.sizeBytes/1024).toFixed(1)} KiB{d.pageCount!==null?` · ${d.pageCount} 页`:''} · 上传于 {new Date(d.createdAt).toLocaleDateString('zh-CN')}</p>{d.state==='FAILED'?<p className="error">{d.errorMessage||'资料处理失败，请检查原文件后重新上传。'}</p>:null}{d.state==='PROCESSING'?<p className="caption">资料正在等待或进行处理，完成后才可用于研究。</p>:null}</div><span className={`document-state state-${d.state.toLowerCase()}`}>{labels[d.state]}</span></li>)}</ul>}
+ {loading?<p role="status">正在加载资料…</p>:documents.length===0?<section className="empty-state"><h3>上传第一份资料</h3><p>选择研究所需的原始资料，随后在这里查看处理状态。</p></section>:<ul className="document-list">{documents.map(d=><li key={d.documentId}><div><h3>{d.title}</h3><p className="caption">{(d.sizeBytes/1024).toFixed(1)} KiB{d.pageCount!==null?` · ${d.pageCount} 页`:''} · 上传于 {new Date(d.createdAt).toLocaleDateString('zh-CN')}</p>{d.state==='FAILED'?<><p className="error">{d.errorMessage||'资料处理失败，请检查原文件后重新上传。'}</p>{d.errorCode==='INGESTION_UNAVAILABLE'?<button className="secondary" disabled={busy} onClick={()=>void retry(d)}>重试处理</button>:null}</>:null}{d.state==='PROCESSING'?<p className="caption">资料正在等待或进行处理，完成后才可用于研究。</p>:null}</div><span className={`document-state state-${d.state.toLowerCase()}`}>{labels[d.state]}</span></li>)}</ul>}
  </section>;
 }

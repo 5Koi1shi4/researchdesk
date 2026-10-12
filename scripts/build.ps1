@@ -13,7 +13,8 @@ try {
         npm run build
         if ($LASTEXITCODE -ne 0) { throw 'Web build failed' }
     } finally { Pop-Location }
-    & apps/ai/.venv/Scripts/python.exe -m pytest apps/ai/tests
+    # Container-independent checks precede packaging. Run test-ingestion.ps1 after Compose starts.
+    & apps/ai/.venv/Scripts/python.exe -m pytest apps/ai/tests -m 'not integration'
     if ($LASTEXITCODE -ne 0) { throw 'AI tests failed' }
     & apps/ai/.venv/Scripts/uv.exe export --project apps/ai --locked --no-dev --no-emit-project --format requirements-txt --output-file apps/ai/requirements.lock --cache-dir .cache/uv --quiet
     if ($LASTEXITCODE -ne 0) { throw 'AI lock export failed' }

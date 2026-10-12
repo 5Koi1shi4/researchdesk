@@ -50,6 +50,7 @@ services:
       SESSION_SECONDS: ${SESSION_SECONDS:-86400}
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-researchdesk-internal-dev-token-change-before-production}
     depends_on:
       postgres: {condition: service_healthy}
       redis: {condition: service_healthy}
@@ -68,9 +69,18 @@ services:
     environment:
       DATABASE_URL: postgresql://researchdesk_retrieval:${RETRIEVAL_DATABASE_PASSWORD:-researchdesk-retrieval-dev-only}@postgres:5432/researchdesk
       REDIS_URL: redis://redis:6379/0
+      JAVA_INTERNAL_URL: http://api:8080
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-researchdesk-internal-dev-token-change-before-production}
+      STORAGE_ENDPOINT: http://minio:9000
+      STORAGE_ACCESS_KEY: ${MINIO_ROOT_USER:-researchdesk-dev}
+      STORAGE_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-researchdesk-dev-only}
+      STORAGE_BUCKET: researchdesk-documents
+      MAX_FILE_BYTES: ${MAX_FILE_BYTES:-20971520}
+      MAX_PDF_PAGES: ${MAX_PDF_PAGES:-200}
     depends_on:
       postgres: {condition: service_healthy}
       redis: {condition: service_healthy}
+      migrate: {condition: service_completed_successfully}
   web:
     build: {context: .., dockerfile: apps/web/Dockerfile}
   proxy:

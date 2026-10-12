@@ -7,6 +7,16 @@ const session={user:{id:'user-1',email:'user@example.test'},csrfToken:'csrf-1'};
 const doc={documentId:'doc-1',versionId:'v-1',taskId:'t-1',title:'研究.md',state:'PROCESSING',errorCode:null,errorMessage:null,sizeBytes:20,pageCount:null,createdAt:'2026-10-12T00:00:00Z'};
 const response=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,headers:{'Content-Type':'application/json'}});
 afterEach(()=>{cleanup();vi.unstubAllGlobals();vi.useRealTimers();});
+it('retries a transient failed task with csrf and then refreshes persisted processing state',async()=>{
+ let retried=false;
+ vi.stubGlobal('fetch',vi.fn(async(path:string,options:RequestInit)=>{
+  if(options.method==='POST'){expect(path).toBe('/api/projects/project-1/tasks/t-1/retry');expect(new Headers(options.headers).get('X-CSRF-Token')).toBe('csrf-1');retried=true;return response({taskId:'t-1',documentVersionId:'v-1',state:'QUEUED',errorCode:null,errorMessage:null},202);}
+  return response([{...doc,state:retried?'PROCESSING':'FAILED',errorCode:retried?null:'INGESTION_UNAVAILABLE'}]);
+ }));
+ render(<DocumentPage project={project} session={session}/>);
+ fireEvent.click(await screen.findByRole('button',{name:'重试处理'}));
+ await screen.findByText('处理中');expect(screen.queryByText('处理失败')).toBeNull();
+});
 it('uploads multipart with disclosure and only renders returned persisted state',async()=>{
  let uploaded=false;
  vi.stubGlobal('fetch',vi.fn(async(path:string,options:RequestInit)=>{
