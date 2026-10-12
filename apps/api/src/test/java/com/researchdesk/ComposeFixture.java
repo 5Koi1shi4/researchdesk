@@ -42,8 +42,9 @@ public final class ComposeFixture {
             throw new IllegalStateException("Explicit isolated test database port required");
         try {
             var p=new ProcessBuilder("docker","compose","-p",project(),"-f",file(),"port","postgres","5432").redirectErrorStream(true).start();
+            if(!p.waitFor(15,TimeUnit.SECONDS)){p.destroyForcibly();throw new IllegalStateException("Database binding check timed out");}
             String actual=new String(p.getInputStream().readAllBytes(),StandardCharsets.UTF_8).strip();
-            if(p.waitFor()!=0 || !actual.equals("127.0.0.1:"+port)) throw new IllegalStateException("Database binding does not match isolated project");
+            if(p.exitValue()!=0 || !actual.equals("127.0.0.1:"+port)) throw new IllegalStateException("Database binding does not match isolated project");
         } catch(java.io.IOException | InterruptedException e) { throw new IllegalStateException("Cannot verify database binding",e); }
         return "jdbc:postgresql://127.0.0.1:"+port+"/researchdesk";
     }

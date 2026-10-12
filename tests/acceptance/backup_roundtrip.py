@@ -27,7 +27,8 @@ def run(*args, timeout=180):
 def compose(project, *args):
     if project != SOURCE and not project.startswith('researchdesk-test-delivery-restore-'):
         raise ValueError('Refusing non-owned project')
-    return run('docker', 'compose', '-p', project, '-f', str(ROOT/'infra/compose.yaml'), *args)
+    env_file=['--env-file',str(ROOT/'.env')] if (ROOT/'.env').is_file() else []
+    return run('docker', 'compose', '-p', project, '-f', str(ROOT/'infra/compose.yaml'), *env_file, *args)
 
 
 def sql(project, query):

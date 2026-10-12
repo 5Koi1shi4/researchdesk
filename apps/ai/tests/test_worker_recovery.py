@@ -29,7 +29,8 @@ def compose_command(*arguments):
         raise ValueError('Recovery requires an isolated loopback origin')
     if project == 'researchdesk-delivery' and target.port != 18085:
         raise ValueError('Delivery recovery requires isolated port 18085')
-    return ['docker', 'compose', '-p', project, '-f', str(ROOT/'infra/compose.yaml'), *arguments]
+    env_file=['--env-file',str(ROOT/'.env')] if (ROOT/'.env').is_file() else []
+    return ['docker', 'compose', '-p', project, '-f', str(ROOT/'infra/compose.yaml'), *env_file, *arguments]
 
 
 def compose(*arguments):

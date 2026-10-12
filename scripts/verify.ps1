@@ -1,4 +1,4 @@
-param([ValidateSet('Unit','Foundation','Full')][string]$Scope='Full',[string]$Project='researchdesk-delivery',[int]$Port=18085)
+param([ValidateSet('Unit','Foundation','Full')][string]$Scope='Full',[string]$Project='researchdesk-test-integration',[int]$Port=18087)
 $ErrorActionPreference='Stop'
 $env:GENERATION_MODE='demo'
 . "$PSScriptRoot/runtime.ps1"
@@ -19,8 +19,10 @@ try {
  if($LASTEXITCODE -ne 0){throw 'Frontend build failed'}
  if($Scope -ne 'Unit'){
   & "$PSScriptRoot/tests/compose-config.tests.ps1"
+  & "$PSScriptRoot/tests/env-config.tests.ps1"
   Initialize-Runtime -Project $Project -Port $Port
   Invoke-DeliveryCompose config --quiet
+  Assert-DemoRuntime
   & "$PSScriptRoot/test-compose.ps1" -Project $Project -Port $Port
   & (Get-AiPython) tests/acceptance/log_redaction.py --project $Project --port $Port
   if($LASTEXITCODE -ne 0){throw 'Sensitive query log regression failed'}

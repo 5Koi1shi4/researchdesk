@@ -1,4 +1,4 @@
-param([string]$Project='researchdesk-delivery',[int]$Port=18085)
+param([string]$Project='researchdesk-test-integration',[int]$Port=18087)
 . "$PSScriptRoot/runtime.ps1"
 Initialize-Runtime -Project $Project -Port $Port
 # Build host artifacts before packaging. Linux wheel target matches the pinned amd64 Alpine image.
@@ -24,6 +24,8 @@ try {
     & (Get-AiPython) -m pip download --no-cache-dir --index-url https://pypi.org/simple -r apps/ai/requirements.lock --dest apps/ai/wheels --only-binary=:all: --platform musllinux_1_2_x86_64 --platform musllinux_1_1_x86_64 --python-version 312 --implementation cp --abi cp312
     if ($LASTEXITCODE -ne 0) { throw 'AI wheel download failed' }
     & "$root/infra/minio/prepare.ps1"
-    & Invoke-DeliveryCompose build
+    & docker image inspect researchdesk-delivery-minio:2025-10-15-fixed --format '{{.Id}}' | Out-Null
+    if ($LASTEXITCODE -ne 0) { Invoke-DeliveryCompose build minio }
+    & Invoke-DeliveryCompose build api ai web
     if ($LASTEXITCODE -ne 0) { throw 'Compose build failed' }
 } finally { Pop-Location }

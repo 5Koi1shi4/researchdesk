@@ -1,8 +1,9 @@
-param([ValidateSet('Foundation','Full')][string]$Scope='Full',[string]$Project='researchdesk-delivery',[int]$Port=18085)
+param([ValidateSet('Foundation','Full')][string]$Scope='Full',[string]$Project='researchdesk-test-integration',[int]$Port=18087)
 $ErrorActionPreference='Stop'
 . "$PSScriptRoot/runtime.ps1"
 Initialize-Runtime -Project $Project -Port $Port
 if($Scope -eq 'Full'){Assert-FullJourney}
+Assert-DemoRuntime
 & "$PSScriptRoot/test-health.ps1" -ApiUrl $env:ACCEPTANCE_URL
 Push-Location "$script:DeliveryRoot/apps/web"
 try {

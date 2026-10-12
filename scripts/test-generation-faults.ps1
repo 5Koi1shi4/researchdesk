@@ -5,6 +5,7 @@ Initialize-Runtime -Project $Project -Port $Port
 if($Project -notmatch '^researchdesk-test-'){throw 'Fault injection requires a test project'}
 $binding=(Invoke-DeliveryCompose port proxy 8080).Trim()
 if($binding -ne "127.0.0.1:$Port"){throw 'Fault target binding mismatch'}
+Assert-DemoRuntime
 $override=Join-Path $script:DeliveryRoot '.cache/generation-fault.override.yaml'
 @"
 services:
@@ -17,6 +18,7 @@ try {
  Invoke-DeliveryCompose cp $fixture ai:/tmp/generation_fault_server.py
  Invoke-DeliveryCompose exec -d ai python /tmp/generation_fault_server.py
  $files=@('-f',"$script:DeliveryRoot/infra/compose.yaml")
+ if(Test-Path -LiteralPath "$script:DeliveryRoot/.env"){$files+=@('--env-file',"$script:DeliveryRoot/.env")}
  if($Project -eq 'researchdesk-test-integration'){$files+=@('-f',"$script:DeliveryRoot/infra/compose.integration.yaml")}
  & docker compose -p $Project --project-directory "$script:DeliveryRoot/infra" @files -f $override up -d --no-deps --force-recreate api proxy
  if($LASTEXITCODE -ne 0){throw 'Fault API recreation failed'}
@@ -27,6 +29,8 @@ try {
  }
  if(-not $ready){throw 'Fault API did not become ready'}
  & "$PSScriptRoot/test-api.ps1" -Integration -Test GenerationRaceIT
+ & node "$script:DeliveryRoot/apps/web/tests/research-timeout.e2e.mjs"
+ if($LASTEXITCODE -ne 0){throw 'Deadline browser acceptance failed'}
 } finally {
  # Recreate only owned services; restarting AI also removes the internal-only fixture.
  Invoke-DeliveryCompose up -d --no-deps --force-recreate api ai proxy
