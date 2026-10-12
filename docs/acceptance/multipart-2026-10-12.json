@@ -1,0 +1,10 @@
+{
+  "status": "PASS",
+  "imageId": "sha256:75dfef14ff71524e798a8bfb7e938a9574e3df739d2d879d9817d9e92d14d026",
+  "sourceCommit": "9e49d5e7a648f00e26f2246f4dc28e6b07f8c84a",
+  "expiryTestSeconds": 8,
+  "cleanupIntervalTestSeconds": 1,
+  "verified": ["expired uploaded part returns NoSuchUpload", "fresh uploaded part retained", "completed object bytes retained"],
+  "productionConfig": {"expiry": "24h", "cleanupInterval": "1h", "scope": "dedicated ResearchDesk MinIO instance"},
+  "limitation": "Multipart listing cache may retain an entry after disk parts have been removed; this test checks actual ListParts accessibility. Accelerated fixture is not a 24-hour endurance test."
+}

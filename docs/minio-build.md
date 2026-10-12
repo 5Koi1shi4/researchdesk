@@ -29,7 +29,7 @@ prepare them before a fresh build. This is a pinned build recipe, not a claim of
 bit-identical image digests across platforms. The source is unmodified; provide
 its corresponding source and license when redistributing the image.
 
-The upstream repository was archived on April 25, 2026. This removes the known
+The [upstream repository](https://github.com/minio/minio) was archived on April 25, 2026. This removes the known
 CVE blocker; it does not establish continued security maintenance or blanket
 production readiness. Review supported storage alternatives and ongoing scans
 before a public deployment. The Go toolchain is pinned to the release toolchain,

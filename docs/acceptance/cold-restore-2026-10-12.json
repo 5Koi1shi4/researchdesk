@@ -1,0 +1,18 @@
+{
+  "status": "PASS",
+  "scope": "foundation cold backup/restore",
+  "backup": "drill-013a17f84aa2",
+  "restoreProject": "researchdesk-test-delivery-restore-drill-013a17f84aa2",
+  "backupSeconds": 27.77,
+  "restoreToVerifiedSeconds": 26.55,
+  "verified": [
+    "existing login",
+    "READY document",
+    "exact original bytes SHA256",
+    "published index",
+    "new authenticated write"
+  ],
+  "pending": [
+    "report versions and exports after integration"
+  ]
+}
