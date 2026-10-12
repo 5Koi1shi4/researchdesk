@@ -1,12 +1,21 @@
 # ResearchDesk Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Subagent-driven execution is available if selected by the user. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Subagent-driven execution is available if selected by the user. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** 交付可部署、可演示、可评测的资料研究工作台，覆盖上传、引用问答、报告编辑与导出。
 
 **Architecture:** React 浏览器客户端仅访问 Java 同源 API。Java 管理身份、项目、业务事务与运行状态；Python 管理解析、检索和模型生成，通过受认证的内部接口与任务队列协作。PostgreSQL 保存业务真相，Redis 只传输任务。
 
 **Tech Stack:** React、TypeScript、Vite、Spring Boot、Python、FastAPI、PostgreSQL、pgvector、Redis、MinIO、Docker Compose；Vitest、Playwright、JUnit、Testcontainers、pytest。
+
+
+## 2026-10-12 集成交付状态
+
+任务 1–10 的实现及模块验收已完成；任务 11 的检索改进、冻结数据与评分工具已完成，真实服务/正式保留集按用户明确要求延期。任务 12 的用量、日志、部署、完整 Full 验收、冷恢复和新建空数据卷 smoke 均已通过。
+
+公共浏览器事件保持严格 RunEvent；用量属于独立内部元数据。演示嵌入为32维SHA256，不能声明真实语义质量。服务端真实生成适配器已实现，真实语义嵌入仍需版本化迁移与重建索引。
+
+复现与证据见 [集成验收](../../integration-acceptance.md)、[独立审查](../../integration-review.md) 和 [并行交付](../../parallel/integration-milestone.md)。复选框表示对应实现/测试步骤已执行；不等于任何未经配置的真实模型成绩。
 
 ## Global Constraints
 
@@ -25,7 +34,7 @@
 
 ## 执行方式与文件地图
 
-目前只存在设计和计划，以下路径均为新项目内的计划路径，并非现有实现。执行时先创建独立 Git 仓库，复制已批准设计和本计划；按 using-git-worktrees 技能决定是否需要工作树。不得把父目录初始化为 Git 仓库，不自动创建远程仓库或发布公网服务。
+原计划下列文件地图用于执行定位，实际文件与命令以仓库和验收记录为准。已在 researchdesk 子目录创建独立 Git 仓库，未初始化父目录、创建远程仓库或发布公网服务。五个并行模块已合并到 feat/researchdesk-v1。
 
 | 路径 | 责任 |
 | --- | --- |
@@ -114,12 +123,12 @@ type GenerationRequest = {
 
 **Interfaces:** 内部 claim、heartbeat、complete、fail 带 attemptId/fence；`parse_document(content: bytes, media_type: str) -> list[ParsedSection]`，ParsedSection 包含 text、page、paragraph；`index_document(task, sections)` 按版本及片段序号幂等写入。
 
-- [ ] 先测试：相同消息投递两次只保留一组索引；旧 fence 完成回报被拒绝；worker 在部分写入后崩溃，重试成功前资料不能进入 READY。
-- [ ] 运行 `./scripts/test-api.ps1 -Test TaskLeaseIT -Integration` 和 `uv run --project apps/ai pytest apps/ai/tests/test_worker_recovery.py -q`，确认目标失败。
-- [ ] 实现 Redis 消费组、数据库租约/CAS 与 Outbox 重投；首次失败后最多重试 3 次，延迟 2/4/8 秒加抖动；永久错误立即 FAILED。增加后台恢复扫描，队列丢失后可重建未完成任务。
-- [ ] 解析器运行在限时子进程，禁用外部资源读取，200 页超限、无文本、加密和格式损坏分别映射错误。Markdown 保留标题和段落序号，PDF 保留页码。
-- [ ] 索引先写未发布版本，完整校验后发布，再向 Java 完成回报。Java 尚未 READY 的版本不能进入授权检索集合。实现确定性 embedding 替身并明确标识。
-- [ ] 执行上述测试及 `uv run --project apps/ai pytest apps/ai/tests/test_ingestion.py -q`；提交 `feat: add recoverable ingestion workers`。
+- [x] 先测试：相同消息投递两次只保留一组索引；旧 fence 完成回报被拒绝；worker 在部分写入后崩溃，重试成功前资料不能进入 READY。
+- [x] 运行 `./scripts/test-api.ps1 -Test TaskLeaseIT -Integration` 和 `uv run --project apps/ai pytest apps/ai/tests/test_worker_recovery.py -q`，确认目标失败。
+- [x] 实现 Redis 消费组、数据库租约/CAS 与 Outbox 重投；首次失败后最多重试 3 次，延迟 2/4/8 秒加抖动；永久错误立即 FAILED。增加后台恢复扫描，队列丢失后可重建未完成任务。
+- [x] 解析器运行在限时子进程，禁用外部资源读取，200 页超限、无文本、加密和格式损坏分别映射错误。Markdown 保留标题和段落序号，PDF 保留页码。
+- [x] 索引先写未发布版本，完整校验后发布，再向 Java 完成回报。Java 尚未 READY 的版本不能进入授权检索集合。实现确定性 embedding 替身并明确标识。
+- [x] 执行上述测试及 `uv run --project apps/ai pytest apps/ai/tests/test_ingestion.py -q`；提交 `feat: add recoverable ingestion workers`。
 
 ### Task 5：原文预览、引用定位与删除
 
@@ -127,10 +136,10 @@ type GenerationRequest = {
 
 **Interfaces:** `GET /api/documents/{id}/source` 由 Java 授权代理内容；`DELETE /api/documents/{id}` 先失效后异步清理；前端 `SourceViewer({citation: Citation})` 定位来源。
 
-- [ ] 测试删除后不能读取原文或检索；旧 Citation 返回 availability=DELETED 且 excerpt=null；重复删除幂等。测试 PDF 页码、Markdown 段落定位和键盘操作。
-- [ ] 运行 `./scripts/test-api.ps1 -Test DocumentDeletionIT -Integration` 与 `npm --prefix apps/web test -- SourceViewer.test.tsx`，确认失败。
-- [ ] 实现安全 PDF 预览与 Markdown 纯文本/安全渲染；删除立即撤销有效版本，清理向量和对象失败可重试，历史回答正文保留且删除提示说明这一点。
-- [ ] 通过浏览器上传并刷新、查看 READY、定位原文、删除；运行 `npm --prefix apps/web run test:e2e -- documents.spec.ts`，提交 `feat: preview and delete document sources`。
+- [x] 测试删除后不能读取原文或检索；旧 Citation 返回 availability=DELETED 且 excerpt=null；重复删除幂等。测试 PDF 页码、Markdown 段落定位和键盘操作。
+- [x] 运行 `./scripts/test-api.ps1 -Test DocumentDeletionIT -Integration` 与 `npm --prefix apps/web test -- SourceViewer.test.tsx`，确认失败。
+- [x] 实现安全 PDF 预览与 Markdown 纯文本/安全渲染；删除立即撤销有效版本，清理向量和对象失败可重试，历史回答正文保留且删除提示说明这一点。
+- [x] 通过浏览器上传并刷新、查看 READY、定位原文、删除；运行 `npm --prefix apps/web run test:e2e -- documents.spec.ts`，提交 `feat: preview and delete document sources`。
 
 ## 里程碑二：用户可以获得可追溯的研究回答
 
@@ -140,12 +149,12 @@ type GenerationRequest = {
 
 **Interfaces:** `retrieve(project_id: str, allowed_version_ids: list[str], query: str, limit: int = 8) -> list[Evidence]`；Evidence 字段为 chunk_id、document_version_id、text、page、paragraph、score。
 
-- [ ] 建立 60 题及来源标注，题型数量按设计，40 题开发集与 20 题保留集固定；先写集合互斥、题型数量和来源存在性的测试。
-- [ ] 写检索失败用例：向量最相近片段属于其他项目时绝不返回；非 READY 或不在 allowed_version_ids 的版本也不可返回；空授权集返回空列表。
-- [ ] 运行 `uv run --project apps/ai pytest apps/ai/tests/test_retrieval.py apps/ai/tests/test_eval_dataset.py -q`，确认目标失败。
-- [ ] 实现数据库查询中前置项目和版本过滤，先建立向量基线，候选最多 20、最终最多 8；写清分块与嵌入版本以便复现。
-- [ ] 在 protocol 中冻结评分量表、人工复核规则、指标计算代码接口和质量阈值，记录制定依据；冻结完成前不得运行保留集。阈值需在此任务审阅，不能看完保留集成绩再修改。
-- [ ] 重跑测试，只运行开发集基线并保存配置摘要；提交 `feat: add scoped retrieval and evaluation dataset`。
+- [x] 建立 60 题及来源标注，题型数量按设计，40 题开发集与 20 题保留集固定；先写集合互斥、题型数量和来源存在性的测试。
+- [x] 写检索失败用例：向量最相近片段属于其他项目时绝不返回；非 READY 或不在 allowed_version_ids 的版本也不可返回；空授权集返回空列表。
+- [x] 运行 `uv run --project apps/ai pytest apps/ai/tests/test_retrieval.py apps/ai/tests/test_eval_dataset.py -q`，确认目标失败。
+- [x] 实现数据库查询中前置项目和版本过滤，先建立向量基线，候选最多 20、最终最多 8；写清分块与嵌入版本以便复现。
+- [x] 在 protocol 中冻结评分量表、人工复核规则、指标计算代码接口和质量阈值，记录制定依据；冻结完成前不得运行保留集。阈值需在此任务审阅，不能看完保留集成绩再修改。
+- [x] 重跑测试，只运行开发集基线并保存配置摘要；提交 `feat: add scoped retrieval and evaluation dataset`。
 
 ### Task 7：有证据约束的生成
 
@@ -153,11 +162,11 @@ type GenerationRequest = {
 
 **Interfaces:** `POST /api/runs` 消费 GenerationRequest；`GET /api/runs/{id}` 返回状态及完整快照；provider 提供 `stream(messages, max_tokens, deadline)`；引用只接受 Evidence 中的 chunk_id。
 
-- [ ] 测试无证据时不调用供应商；伪造来源不能变为 Citation；注入文本不能改变资料范围；跨用户 conversationId 返回 404；超过两个并发运行返回 429。
-- [ ] 运行 `uv run --project apps/ai pytest apps/ai/tests/test_generation.py -q` 与 `./scripts/test-api.ps1 -Test GenerationScopeIT -Integration`，确认失败。
-- [ ] Java 校验并冻结有效资料范围及最近 12 条会话消息，再以 8,000 tokens 历史预算裁剪；Python 按证据边界构建提示，系统规则不与原文拼接成同级指令。
-- [ ] 增加真实供应商和确定性替身适配器，限制输出及截止时间。流中引用为草稿，完成时校验并保存映射；引用校验不通过标记失败，不展示成已验证答案。
-- [ ] Java 完成提交前重验文档可用性，删除竞态终止生成。运行测试并提交 `feat: generate evidence-grounded research answers`。
+- [x] 测试无证据时不调用供应商；伪造来源不能变为 Citation；注入文本不能改变资料范围；跨用户 conversationId 返回 404；超过两个并发运行返回 429。
+- [x] 运行 `uv run --project apps/ai pytest apps/ai/tests/test_generation.py -q` 与 `./scripts/test-api.ps1 -Test GenerationScopeIT -Integration`，确认失败。
+- [x] Java 校验并冻结有效资料范围及最近 12 条会话消息，再以 8,000 tokens 历史预算裁剪；Python 按证据边界构建提示，系统规则不与原文拼接成同级指令。
+- [x] 增加真实供应商和确定性替身适配器，限制输出及截止时间。流中引用为草稿，完成时校验并保存映射；引用校验不通过标记失败，不展示成已验证答案。
+- [x] Java 完成提交前重验文档可用性，删除竞态终止生成。运行测试并提交 `feat: generate evidence-grounded research answers`。
 
 ### Task 8：流式事件、停止及断线恢复
 
@@ -165,9 +174,9 @@ type GenerationRequest = {
 
 **Interfaces:** `GET /api/runs/{id}/events` 接受 Last-Event-ID；`POST /api/runs/{id}/cancel`；事件 seq 单调递增，终态不可回退。事件超过 24 小时窗口返回 EVENT_WINDOW_EXPIRED，客户端读取运行快照。
 
-- [ ] 写失败测试：重复 seq 不重复拼接；断线后补齐缺失序列；取消后迟到 completed 不改变终态；运行失败后不自动重新调用模型。
-- [ ] 运行 `./scripts/test-api.ps1 -Test RunRecoveryIT -Integration`、`npm --prefix apps/web test -- events.test.ts`，确认失败。
-- [ ] 实现持久事件批写、心跳、Java 授权订阅和恢复；可用以下规则约束客户端 reducer：
+- [x] 写失败测试：重复 seq 不重复拼接；断线后补齐缺失序列；取消后迟到 completed 不改变终态；运行失败后不自动重新调用模型。
+- [x] 运行 `./scripts/test-api.ps1 -Test RunRecoveryIT -Integration`、`npm --prefix apps/web test -- events.test.ts`，确认失败。
+- [x] 实现持久事件与快照同事务即时写入、心跳、Java 授权订阅和恢复（实际取舍：优先崩溃一致性，不宣称批写吞吐收益）；可用以下规则约束客户端 reducer：
 
 ```typescript
 if (event.seq <= state.lastSeq) return state;
@@ -175,8 +184,8 @@ if (state.terminal) return state;
 // 按 delta/citation/终态分别更新；发现序号缺口先恢复，不能跳过缺失文本。
 ```
 
-- [ ] 组装三栏工作台，流式输出不抢滚动，引用可键盘选择；停止按钮给出取消请求状态，并说明供应商可能仍计费。
-- [ ] 运行页面测试及真实断网/重连旅程；提交 `feat: stream resumable research conversations`。
+- [x] 组装三栏工作台，流式输出不抢滚动，引用可键盘选择；停止按钮给出取消请求状态，并说明供应商可能仍计费。
+- [x] 运行页面测试及真实断网/重连旅程；提交 `feat: stream resumable research conversations`。
 
 ## 里程碑三：用户可以保存并交付报告
 
@@ -186,10 +195,10 @@ if (state.terminal) return state;
 
 **Interfaces:** RunKind.REPORT 使用已授权来源生成；`POST /api/reports/{id}/versions` 接受 `{baseVersion, markdown}`；返回不可变版本。冲突返回 409 VERSION_CONFLICT。
 
-- [ ] 编写失败测试：两次基于 v1 保存只能一个成功；重新生成创建新草稿；编辑删除引用不会留下错误编号；引用其他项目 ID 被拒绝。
-- [ ] 运行 `./scripts/test-api.ps1 -Test ReportVersionIT -Integration`、`uv run --project apps/ai pytest apps/ai/tests/test_reports.py -q`，确认目标失败。
-- [ ] 实现数据库乐观版本更新与不可变历史，生成草稿复用检索和引用验证；报告正文将引用保存为稳定来源标记，展示时解析。
-- [ ] 实现 Markdown 编辑/预览、显式保存、离开提示、冲突另存副本、历史查看；原始 HTML 不执行。通过编辑器测试并提交 `feat: edit and version grounded reports`。
+- [x] 编写失败测试：两次基于 v1 保存只能一个成功；重新生成创建新草稿；编辑删除引用不会留下错误编号；引用其他项目 ID 被拒绝。
+- [x] 运行 `./scripts/test-api.ps1 -Test ReportVersionIT -Integration`、`uv run --project apps/ai pytest apps/ai/tests/test_reports.py -q`，确认目标失败。
+- [x] 实现数据库乐观版本更新与不可变历史，生成草稿复用检索和引用验证；报告正文将引用保存为稳定来源标记，展示时解析。
+- [x] 实现 Markdown 编辑/预览、显式保存、离开提示、冲突另存副本、历史查看；原始 HTML 不执行。通过编辑器测试并提交 `feat: edit and version grounded reports`。
 
 ### Task 10：安全的 Markdown / PDF 导出
 
@@ -197,10 +206,10 @@ if (state.terminal) return state;
 
 **Interfaces:** `POST /api/reports/{id}/exports` 接受 `{version, format:'MARKDOWN'|'PDF'}` 返回任务；下载端点先校验所属项目，导出源固定为该历史版本。
 
-- [ ] 写失败测试：中文和多页内容保留；包含外部图片、file URL、HTML 的 Markdown 不引发网络/文件读取；导出不能读取其他用户报告。
-- [ ] 运行 `uv run --project apps/ai pytest apps/ai/tests/test_export.py -q` 与 `./scripts/test-api.ps1 -Test ExportIT -Integration`，确认目标失败。
-- [ ] 选择并锁定能嵌入中文字体的 PDF 渲染器，在禁用网络和受限文件访问环境生成，输出引用附录与已删除来源提示；生成文件进入私有对象存储。
-- [ ] 加载 PDF 技能，对中文、多页表格、长引用样例进行实际渲染检查，保存视觉证据。运行报告浏览器旅程，提交 `feat: export versioned research reports`。
+- [x] 写失败测试：中文和多页内容保留；包含外部图片、file URL、HTML 的 Markdown 不引发网络/文件读取；导出不能读取其他用户报告。
+- [x] 运行 `uv run --project apps/ai pytest apps/ai/tests/test_export.py -q` 与 `./scripts/test-api.ps1 -Test ExportIT -Integration`，确认目标失败。
+- [x] 选择并锁定能嵌入中文字体的 PDF 渲染器，在禁用网络和受限文件访问环境生成，输出引用附录与已删除来源提示；生成文件进入私有对象存储。
+- [x] 加载 PDF 技能，对中文、多页表格、长引用样例进行实际渲染检查，保存视觉证据。运行报告浏览器旅程，提交 `feat: export versioned research reports`。
 
 ## 里程碑四：评测、恢复与可复现交付
 
@@ -210,11 +219,11 @@ if (state.terminal) return state;
 
 **Interfaces:** evaluate 脚本接收 `-Split dev|holdout -Mode stub|real -Config path`；缺少真实模型配置时 real 失败，不能回退替身。结果包含数据和配置 hash、指标、延迟、实际或未知用量。
 
-- [ ] 编写人工可算的评分测试：两题中一题 top5 命中得到 Recall@5=0.5；未提供 token 用量时输出 null；引用存在但语义不支持计为错误引用。
-- [ ] 运行 `uv run --project apps/ai pytest evals/test_score.py apps/ai/tests/test_hybrid.py -q`，确认目标失败。
-- [ ] 实现关键词与向量融合、可配置重排；只用开发集比较，并依据质量、成本和延迟记录选择。不要默认更复杂配置一定更好。
-- [ ] 确认任务 6 协议与阈值已冻结，使用真实模型一次正式运行保留集；人工复核引用与报告量表，公布失败案例和限制。如果未达标，标记失败并建立新的数据版本，不在旧保留集上反复调参冒充独立验收。
-- [ ] 提交脚本、无敏感数据的结果和配置；提交 `feat: benchmark retrieval and generation quality`。
+- [x] 编写人工可算的评分测试：两题中一题 top5 命中得到 Recall@5=0.5；未提供 token 用量时输出 null；引用存在但语义不支持计为错误引用。
+- [x] 运行 `uv run --project apps/ai pytest evals/test_score.py apps/ai/tests/test_hybrid.py -q`，确认目标失败。
+- [x] 实现关键词与向量融合、可配置重排；只用开发集比较，并依据质量、成本和延迟记录选择。不要默认更复杂配置一定更好。
+- [ ] 【用户明确延期：服务配置后执行】确认任务 6 协议与阈值已冻结，使用真实模型一次正式运行保留集；人工复核引用与报告量表，公布失败案例和限制。如果未达标，标记失败并建立新的数据版本，不在旧保留集上反复调参冒充独立验收。
+- [x] 提交脚本、无敏感数据的结果和配置；提交 `feat: benchmark retrieval and generation quality`。
 
 ### Task 12：全链路故障、观测与部署验收
 
@@ -222,12 +231,12 @@ if (state.terminal) return state;
 
 **Interfaces:** `./scripts/verify.ps1` 执行契约、Java、Python、前端单元/构建及浏览器检查；`./scripts/smoke.ps1` 在启动的 Compose 上完成注册到报告导出的旅程；评测单独调用并明确是否真实模型。
 
-- [ ] 写故障旅程：杀死解析 worker 后任务恢复；Redis 中断后业务任务不丢失；供应商超时显示可重试错误；取消不被迟到成功覆盖；删除与完成竞态不保存有效引用。
-- [ ] 在受控测试容器上运行失败用例，不对已有项目服务执行停止操作。补齐缺失恢复行为，使用 requestId/taskId/runId 关联日志，确认日志不含原文、提示词、密钥及认证信息。
-- [ ] 增加用户范围用量展示；没有供应商用量则显示未知，成本估算显示价格配置日期。生产 Cookie、CSRF、内部服务认证及端口暴露由集成测试验证。
-- [ ] 运行 `./scripts/verify.ps1`，通过后再在干净 Compose 数据卷运行 smoke；销毁测试卷前核对 Compose 项目名和卷清单，只删除本项目的测试资源。
-- [ ] 写部署、备份恢复、配置、示例账户创建说明及演示脚本。演示串联上传、引用、报告、失败恢复；面试材料引用实际测试和评测数字，不编造吞吐与质量。
-- [ ] 完成代码审阅和修复，执行适用的回归及 `git diff --check`；提交 `docs: ship verified ResearchDesk demo and deployment guide`。公网发布或远程推送按用户授权单独处理。
+- [x] 写故障旅程：杀死解析 worker 后任务恢复；Redis 中断后业务任务不丢失；供应商超时显示可重试错误；取消不被迟到成功覆盖；删除与完成竞态不保存有效引用。
+- [x] 在受控测试容器上运行失败用例，不对已有项目服务执行停止操作。补齐缺失恢复行为，使用 requestId/taskId/runId 关联日志，确认日志不含原文、提示词、密钥及认证信息。
+- [x] 增加用户范围用量展示；没有供应商用量则显示未知，成本估算显示价格配置日期。生产 Cookie、CSRF、内部服务认证及端口暴露由集成测试验证。
+- [x] 运行 `./scripts/verify.ps1`，通过后再在干净 Compose 数据卷运行 smoke；销毁测试卷前核对 Compose 项目名和卷清单，只删除本项目的测试资源。
+- [x] 写部署、备份恢复、配置、示例账户创建说明及演示脚本。演示串联上传、引用、报告、失败恢复；面试材料引用实际测试和评测数字，不编造吞吐与质量。
+- [x] 完成代码审阅和修复，执行适用的回归及 `git diff --check`；提交 `docs: ship verified ResearchDesk demo and deployment guide`。公网发布或远程推送按用户授权单独处理。
 
 ## 覆盖复核与停止条件
 
@@ -248,4 +257,4 @@ if (state.terminal) return state;
 
 遇到 Docker、运行时、下载或密钥问题先完成不受影响任务，并准确报告受阻验收。真实模型密钥通过本地安全配置提供，不要求用户在聊天中发送。没有真实模型成绩时可以交付明确标注的演示，但不能宣称全项目验收完成。
 
-本计划已按批准规格自查覆盖、术语及状态一致性。尚未创建项目、安装依赖、执行实现测试或提交 Git；下一步是选择执行方式并从任务 1 开始。
+本计划已按批准规格实施并完成独立审查。实际迁移编号为 V001–V010；若早期路径、类名或测试入口与实现不同，以代码、各模块交付记录及 docs/integration-acceptance.md 为准。未运行的真实模型及保留集不标记为通过。
