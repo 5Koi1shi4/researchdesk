@@ -1,4 +1,5 @@
 """Report draft seam. Java supplies the authorized retrieval scope."""
+import asyncio
 import re
 import time
 from generated.contracts import Citation
@@ -18,11 +19,12 @@ async def generate_report(evidence, provider, prompt, allowed_version_ids, title
               {'role':'user','content':prompt+'\n\nEvidence:\n'+'\n'.join(f'[[cite:{e.chunk_id}]] {e.text}' for e in evidence)}]
     parts=[]; size=0
     if time.monotonic()>=deadline: raise TimeoutError('Report deadline exceeded')
-    async for part in provider.stream(messages,max_tokens=6000,deadline=deadline):
-        if time.monotonic()>=deadline: raise TimeoutError('Report deadline exceeded')
-        size+=len(part)
-        if size>200000: raise ValueError('Report exceeds output limit')
-        parts.append(part)
+    async with asyncio.timeout(max(0,deadline-time.monotonic())):
+        async for part in provider.stream(messages,max_tokens=6000,deadline=deadline):
+            if time.monotonic()>=deadline: raise TimeoutError('Report deadline exceeded')
+            size+=len(part)
+            if size>200000: raise ValueError('Report exceeds output limit')
+            parts.append(part)
     if time.monotonic()>=deadline: raise TimeoutError('Report deadline exceeded')
     markdown=''.join(parts)
     if not markdown.strip(): raise ValueError('Empty report')

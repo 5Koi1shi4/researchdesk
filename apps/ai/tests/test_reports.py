@@ -30,3 +30,15 @@ def test_fabricated_and_unauthorized_citations_rejected():
 def test_deadline_and_output_limit():
     with pytest.raises(TimeoutError): asyncio.run(generate_report([evidence()],Provider('[[cite:c1]]'),'Q',['v1'],deadline=0))
     with pytest.raises(ValueError): asyncio.run(generate_report([evidence()],Provider('x'*200001+'[[cite:c1]]'),'Q',['v1']))
+
+def test_stalled_provider_deadline():
+    import time
+    class Stalled:
+        async def stream(self,*args,**kwargs):
+            await asyncio.sleep(1)
+            yield '[[cite:c1]]'
+    with pytest.raises(TimeoutError): asyncio.run(generate_report([evidence()],Stalled(),'Q',['v1'],deadline=time.monotonic()+.01))
+
+@pytest.mark.parametrize('text',['[[cite:c1','[[cite:fake]]','uncited claim'])
+def test_invalid_report_rejected(text):
+    with pytest.raises(ValueError): asyncio.run(generate_report([evidence()],Provider(text),'Q',['v1']))
