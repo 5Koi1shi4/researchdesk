@@ -297,3 +297,30 @@ class DocumentTask(BaseModel):
     state: TaskState
     errorCode: str | None
     errorMessage: str | None
+
+
+class SourceInfo(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    documentId: UUID
+    documentVersionId: UUID
+    title: str
+    mediaType: Literal['application/pdf', 'text/markdown']
+    pageCount: Annotated[int | None, Field(ge=1, le=200)]
+    availability: Availability
+
+
+class SourceAvailabilityRequest(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    citations: Annotated[list[Citation], Field(max_length=200)]
+
+
+class SourceDeletion(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    documentId: UUID
+    state: Literal['DELETING', 'DELETED']

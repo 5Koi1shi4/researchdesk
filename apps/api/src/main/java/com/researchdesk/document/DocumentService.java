@@ -38,7 +38,7 @@ public class DocumentService {
     Accepted result=tx.execute(status->{
      db.execute("SET LOCAL lock_timeout='5s'");
      if(db.queryForList("SELECT id FROM business.projects WHERE id=? AND owner_id=? FOR UPDATE",project,owner).isEmpty())throw new ApiFailure(404,"PROJECT_NOT_FOUND","项目不存在。");
-     var existing=db.query("SELECT d.id,v.id,t.id,d.state FROM business.documents d JOIN business.document_versions v ON v.document_id=d.id JOIN business.tasks t ON t.document_version_id=v.id WHERE d.project_id=? AND d.content_sha256=?",(r,i)->new DocumentUpload(r.getString(1),r.getString(2),r.getString(3),DocumentState.valueOf(r.getString(4))),project,valid.digest());
+     var existing=db.query("SELECT d.id,v.id,t.id,d.state FROM business.documents d JOIN business.document_versions v ON v.document_id=d.id JOIN business.tasks t ON t.document_version_id=v.id WHERE d.project_id=? AND d.content_sha256=? AND d.state NOT IN ('DELETING','DELETED')",(r,i)->new DocumentUpload(r.getString(1),r.getString(2),r.getString(3),DocumentState.valueOf(r.getString(4))),project,valid.digest());
      if(!existing.isEmpty())return new Accepted(existing.get(0),true);
      if(db.queryForObject("SELECT count(*) FROM business.documents WHERE project_id=? AND state<>'DELETED'",Integer.class,project)>=quota)throw new ApiFailure(409,"DOCUMENT_QUOTA","项目资料数量已达上限（最多 50 份），请使用其他项目。");
      db.update("INSERT INTO business.documents(id,project_id,title,content_sha256,state) VALUES (?,?,?,?,'PROCESSING')",document,project,valid.title(),valid.digest());
