@@ -7,7 +7,7 @@ export function presentCitations(markdown:string,citations:Citation[]) {
  return result;
 }
 export function ReportPreview({markdown,citations}:{markdown:string;citations:Citation[]}){
- const [selected,setSelected]=useState<Citation|null>(null); const present=presentCitations(markdown,citations);const numbers=new Map(present.map((c,i)=>[c.chunkId,i+1]));
+ const [selectedChunkId,setSelectedChunkId]=useState<string|null>(null); const present=presentCitations(markdown,citations);const selected=present.find(c=>c.chunkId===selectedChunkId);const numbers=new Map(present.map((c,i)=>[c.chunkId,i+1]));
  function inline(text:string):ReactNode[]{
   // React text nodes keep raw HTML inert. Images and links remain literal text; no resource URL is visited.
   const parts:ReactNode[]=[];let end=0;const tokens=/`[^`]*`|\*\*[^*]+\*\*|\*[^*]+\*|\[\[cite:([^\]\s]+)\]\]/g;
@@ -15,7 +15,7 @@ export function ReportPreview({markdown,citations}:{markdown:string;citations:Ci
    if(token.startsWith('`'))parts.push(<code key={match.index}>{inline(token.slice(1,-1))}</code>);
    else if(token.startsWith('**'))parts.push(<strong key={match.index}>{inline(token.slice(2,-2))}</strong>);
    else if(token.startsWith('*'))parts.push(<em key={match.index}>{inline(token.slice(1,-1))}</em>);
-   else {const c=present.find(c=>c.chunkId===match[1]);parts.push(c?<button key={match.index} type="button" className="citation-marker" aria-label={`引用 ${numbers.get(c.chunkId)}：${c.title}`} onClick={()=>setSelected(c)}>[{numbers.get(c.chunkId)}]</button>:<span key={match.index} className="error">[引用不可用：{match[1]}]</span>);}
+   else {const c=present.find(c=>c.chunkId===match[1]);parts.push(c?<button key={match.index} type="button" className="citation-marker" aria-label={`引用 ${numbers.get(c.chunkId)}：${c.title}`} onClick={()=>setSelectedChunkId(c.chunkId)}>[{numbers.get(c.chunkId)}]</button>:<span key={match.index} className="error">[引用不可用：{match[1]}]</span>);}
    end=match.index!+match[0].length;
   }
   parts.push(text.slice(end));return parts;
@@ -31,7 +31,7 @@ export function ReportPreview({markdown,citations}:{markdown:string;citations:Ci
   else if(/^>\s?/.test(line))blocks.push(<blockquote key={i}>{inline(line.replace(/^>\s?/,''))}</blockquote>);
   else blocks.push(<p key={i}>{inline(line)}</p>);
  }
- return <><article className="report-preview" aria-label="报告预览">{blocks.length?blocks:<p>开始撰写报告，预览会显示在这里。</p>}{present.length?<section aria-label="引用附录"><h3>引用资料</h3><ol>{present.map(c=><li key={c.chunkId}>{c.title}{c.page!==null?` · 第 ${c.page} 页`:c.paragraph!==null?` · 第 ${c.paragraph} 段`:''}{c.availability==='DELETED'?' · 来源已删除':''}</li>)}</ol></section>:null}</article>{selected&&present.some(c=>c.chunkId===selected.chunkId)?<aside className="report-evidence" aria-label="引用摘录"><h3>{selected.title}</h3><p>{selected.availability==='DELETED'?'来源已删除，以下为保存时的引用快照。':'保存时的引用摘录'}</p><blockquote>{selected.excerpt||'没有保存摘录。'}</blockquote><button className="secondary" onClick={()=>setSelected(null)}>关闭摘录</button></aside>:null}</>;
+ return <><article className="report-preview" aria-label="报告预览">{blocks.length?blocks:<p>开始撰写报告，预览会显示在这里。</p>}{present.length?<section aria-label="引用附录"><h3>引用资料</h3><ol>{present.map(c=><li key={c.chunkId}>{c.title}{c.page!==null?` · 第 ${c.page} 页`:c.paragraph!==null?` · 第 ${c.paragraph} 段`:''}{c.availability==='DELETED'?' · 来源已删除':''}</li>)}</ol></section>:null}</article>{selected?<aside className="report-evidence" aria-label="引用摘录"><h3>{selected.title}</h3><p>{selected.availability==='DELETED'?'来源已删除，原文与摘录无法访问。':'保存时的引用摘录'}</p>{selected.availability==='DELETED'?null:<blockquote>{selected.excerpt||'没有保存摘录。'}</blockquote>}<button className="secondary" onClick={()=>setSelectedChunkId(null)}>关闭摘录</button></aside>:null}</>;
 }
 
 
