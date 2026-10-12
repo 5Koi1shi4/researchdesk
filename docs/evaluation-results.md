@@ -24,9 +24,9 @@ The checked-in three JSON result artifacts contain exact hashes and individual a
 
 | Configuration | Recall@5 (31 eligible) | Mean latency ms | P95 ms | Actual tokens |
 | --- | ---: | ---: | ---: | --- |
-| vector baseline | 0.290323 | 0.541 | 1.098 | unknown |
-| hybrid RRF | 0.854839 | 1.247 | 2.223 | unknown |
-| hybrid + lexical rerank | 0.919355 | 1.240 | 2.454 | unknown |
+| vector baseline | 0.290323 | 0.491 | 0.741 | unknown |
+| hybrid RRF | 0.854839 | 0.785 | 1.348 | unknown |
+| hybrid + lexical rerank | 0.919355 | 1.029 | 1.557 | unknown |
 
 Latency is one local fixture run and includes Python retrieval/extract formatting, not network/model/database latency. Small differences are not statistically meaningful. Human semantic support, claim coverage, refusal and completion remain null because no human/model answer review has been conducted. The low vector baseline is expected for SHA256 pseudo-vectors with no semantic geometry; keyword fusion's gain on this deliberately lexical corpus is not evidence of real embedding/model quality. Cost is unknown, not zero.
 
@@ -41,3 +41,20 @@ Decision: retain **vector as the production default**; expose hybrid and lexical
 - Human annotation importer requires all answer citation occurrences in order and computes existence from observed retrieval; reviewers supply semantic support. Two independent reviews and adjudication are still needed. Report rubric/export acceptance is separate and pending integrated report generation.
 
 PowerShell entrypoint smoke: process-scoped `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/evaluate.ps1 ...` returned 0 for dev/stub; with provider environment absent dev/real returned child exit 2 and no fallback. The host default script policy initially blocked execution; no global execution policy was changed. Python module commands remain usable without PowerShell policy changes.
+
+## Continuation hardening (2026-10-12)
+
+The real adapter now rejects a non-object `usage` value with the same redacted
+failure as other invalid provider responses. Four local HTTP regression cases
+failed before the fix and passed afterward. Missing/null usage remains unknown.
+The saved results were regenerated against freeze `library-v1.1`, which records
+the previous freeze hash and the revision reason. Dataset, split, protocol and
+quality thresholds are unchanged; no holdout or external provider was executed.
+
+A checked-in isolated database runner is available at
+`apps/ai/tests/retrieval-env/run.ps1 -Python <interpreter>`. It owns only Compose
+project `researchdesk-retrieval`, service `test-db`, loopback port 18082 and the
+`verification-data` volume. It applies the assigned migrations transactionally,
+checks previously applied migration hashes, runs the five SQL tests and stops
+the service while preserving data. Fresh and repeated runs passed. A failing
+startup also invokes scoped cleanup; this is covered by a PowerShell fault test.

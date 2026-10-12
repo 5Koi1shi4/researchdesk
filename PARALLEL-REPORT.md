@@ -94,3 +94,36 @@ PostgreSQL tests were selected. No remote pushes, deployment or main merge.
 
 The owned PostgreSQL service was stopped after verification. Its isolated volume
 was retained for inspection; no destructive volume cleanup was performed.
+
+## Continuation verification — 2026-10-12
+
+User requested continuation. Completed two remaining reproducibility/error-path
+improvements within this clone:
+
+- Real generation evaluator validates that provider `usage` is an object or
+  null. Four malformed response cases first failed with unhandled AttributeError,
+  then passed with the established redacted failure. Missing usage remains null.
+- Added a checked-in isolated database test environment under
+  apps/ai/tests/retrieval-env. It uses fixed Compose project researchdesk-retrieval,
+  service test-db, loopback18082, its own verification-data volume, a transactional
+  migration checksum journal, and stops the service without dropping data.
+- Independent review found a startup-failure cleanup gap. A fault-injected
+  PowerShell test reproduced the omitted stop; cleanup now also runs after
+  failed startup. The test confirms only the owned project/service is stopped.
+
+Fresh database run: 5 passed in 2.54s. Repeated setup/migration run: 5 passed in
+2.60s. Both stopped test-db and preserved the verification-data volume.
+Final AI/evaluation non-integration suite: 72 passed, 10 deselected in 23.48s.
+Independent review: evaluation/data 21 passed; runner cleanup 1 passed, no
+remaining findings. Root infra, shared Dockerfile and sibling clones were not
+changed.
+
+Freeze revision library-v1.1 records the original freeze hash and the response
+validation change. Dataset, split, protocol and quality thresholds are unchanged.
+All three dev-only demo comparisons were regenerated, and every frozen dependency
+plus dataset/split/freeze/config hash was verified against staged Git blob bytes.
+No external provider or holdout execution occurred. AI quality remains
+NOT_EVALUATED. Latest detailed latency values are in docs/evaluation-results.md.
+
+The incremental implementation/report commit is the current branch HEAD; see
+final response or git log for its SHA. Integration dependencies above still apply.

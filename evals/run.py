@@ -66,7 +66,11 @@ def real_answer(settings, question, evidence, config, *, transport=None):
             answer=payload['choices'][0]['message']['content']
             if not isinstance(answer,str) or not answer.strip():
                 raise ValueError('invalid answer')
-            usage=payload.get('usage') or {}
+            usage=payload.get('usage')
+            if usage is None:
+                usage={}
+            if not isinstance(usage,dict):
+                raise ValueError('invalid usage object')
             value=usage.get('total_tokens')
             if value is not None and (type(value) is not int or value < 0):
                 raise ValueError('invalid usage')

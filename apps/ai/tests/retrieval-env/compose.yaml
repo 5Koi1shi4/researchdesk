@@ -1,0 +1,22 @@
+name: researchdesk-retrieval
+services:
+  test-db:
+    image: pgvector/pgvector:0.8.6-pg17-trixie@sha256:724a4041afdb1750446e3f6b5cfa8f3b0ac5a2cf538ddfa6bfee4f94c2fa85c6
+    ports: ["127.0.0.1:18082:5432"]
+    environment:
+      POSTGRES_DB: researchdesk
+      POSTGRES_USER: researchdesk
+      POSTGRES_PASSWORD: researchdesk-dev-only
+      BUSINESS_DATABASE_PASSWORD: researchdesk-business-dev-only
+      RETRIEVAL_DATABASE_PASSWORD: researchdesk-retrieval-dev-only
+    volumes:
+      - verification-data:/var/lib/postgresql/data
+      - ../../../../infra/provision-roles.sql:/opt/researchdesk/provision-roles.sql:ro
+      - ../../../../infra/provision-roles.sh:/docker-entrypoint-initdb.d/10-researchdesk-roles.sh:ro
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U researchdesk -d researchdesk"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+volumes:
+  verification-data:

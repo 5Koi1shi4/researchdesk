@@ -60,6 +60,21 @@ shared Dockerfile. No new Python runtime dependencies or API routes are required
 
 ## Verification
 
+The checked-in standalone integration entry point is:
+
+```powershell
+./apps/ai/tests/retrieval-env/run.ps1 -Python <interpreter-with-project-dev-dependencies>
+```
+
+It starts only `researchdesk-retrieval/test-db`, uses loopback port18082, and
+keeps its own `researchdesk-retrieval_verification-data` volume. Ensure this port
+is free; the older ad-hoc retrieval postgres service must remain stopped. The
+runner checks container project/service labels before migration, applies only
+V001/V002/V003/V004/V006 with a checksum journal, and fails if an already applied
+migration changes. It runs the five PostgreSQL tests and stops only test-db on
+success or failure. It never drops a database or volume. Repeated runs retain
+the journal and remove only fixture-owned records via test cleanup.
+
 Unit: `python -m pytest apps/ai/tests/test_retrieval.py apps/ai/tests/test_hybrid.py -q`
 with `PYTHONPATH=<clone>/apps/ai`.
 
@@ -73,5 +88,7 @@ Tests use the restricted retrieval login for production queries, and an admin
 fixture connection only to seed and remove their own UUID-tagged records.
 
 Actual local validation: 14 tests passed including five PostgreSQL tests;
-no main-project containers, volumes or records were modified. The test database
-is a separate `researchdesk-retrieval_postgres-data` volume.
+no main-project containers, volumes or records were modified. The earlier ad-hoc database
+used `researchdesk-retrieval_postgres-data`; it remains stopped and retained.
+The checked-in runner uses its separate verification-data volume and passed both
+fresh and repeated migration/test runs.

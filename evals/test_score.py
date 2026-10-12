@@ -213,3 +213,13 @@ def test_human_review_cannot_omit_or_forge_citation_occurrences():
     review['citations'][1]['exists']=True
     with pytest.raises(ValueError,match='citation'):
         review_results(report,annotation,'h')
+
+
+@pytest.mark.parametrize('malformed', ['provider-secret', ['provider-secret'], 1, True])
+def test_real_adapter_rejects_malformed_usage_with_redacted_error(local_provider, malformed):
+    run=runner()
+    local_provider['body']['usage']=malformed
+    with pytest.raises(RuntimeError, match='invalid response; no fallback used') as failure:
+        run.real_answer({'base_url':local_provider['url'],'api_key':'key-secret','model':'test'},'q',[],run.DEFAULT_CONFIG)
+    assert 'provider-secret' not in str(failure.value)
+    assert 'key-secret' not in str(failure.value)
