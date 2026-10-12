@@ -1,9 +1,22 @@
-# Interview talking points
+# 秋招讲解材料
 
-ResearchDesk separates browser interaction, Java authorization/transactions and Python parsing/retrieval. PostgreSQL is the task source of truth; Redis dispatch is recoverable. Attempt IDs, leases and monotonic fences prevent old workers publishing success. Object writes require durable cleanup intent because object storage cannot participate in a PostgreSQL transaction.
+ResearchDesk 是一个 React / TypeScript、Spring Boot 和 Python 分工的私有资料研究应用。核心展示链路是上传资料、引用问答、报告编辑与安全导出；AI 模型不能代替确定性的所有权检查。
 
-Explain the tradeoffs with evidence: an Outbox handles enqueue failure; periodic reconciliation recovers lost streams; isolated parser processes bound resource use; cold backups trade downtime for a consistent database/object snapshot. Authorization remains deterministic server logic and is not delegated to the language model. Unknown provider usage remains unknown, not zero cost.
+## 可以结合代码说明的设计
 
-Bring the actual commands and results from task12-acceptance.md/PARALLEL-REPORT.md. Demonstrate an owner isolation test and one real failure recovery. Distinguish unit/component coverage, real infrastructure acceptance and deferred real-model evaluation. The standalone delivery branch cannot claim registration-to-report-export completion until generation, sources and reports are integrated. Describe unresolved items as limitations rather than hypothetical completed features.
+- PostgreSQL 是任务事实来源，Redis 只做可恢复分发。Outbox 处理入队失败，补偿扫描恢复丢失的队列。
+- attempt、租约和递增 fence 限定 worker 发布权，防止崩溃后旧执行者覆盖新结果。对象存储不参与数据库事务，因此写入前建立持久清理意图。
+- 文档解析和 PDF 预览使用受限子进程；报告导出不加载任意网络资源或本地文件。资源预算会拒绝部分合法但过于复杂的文件，这是明确的取舍。
+- Java 冻结资料授权范围，并在最终生成事务中重新检查来源；引用 ID 有效只能证明来源存在，不能证明结论受到语义支持。
+- POST 创建运行、SSE 补读和快照恢复分离。取消是不可回退的终态，网络重连不重新创建模型调用。
+- 报告生成在运行完成事务内创建幂等的新草稿。人工编辑用不可变版本与乐观冲突控制，重新生成不覆盖已有编辑。
+- 每次运行记录独立用量；缺失值保持未知，费用是带模型、币种和价格日期的估算。日志保留关联 ID 与耗时，不记录原文、提示词或密钥。
+- 冷备份用停机换取业务数据库与对象存储的一致快照。恢复检查需要包含报告历史和导出文件，而不仅是服务能启动。
 
-Suggested discussion: why a queue is not task truth; how a crashed worker loses publication rights; how deleted sources invalidate future access without rewriting old citation snapshots; why report versions must be immutable; how provider timeouts and unknown token usage should be represented. For features not integrated here, refer to the owning module's implementation and evidence before claiming support.
+## 如何提供可信证据
+
+从 integration-acceptance.md 引用当前提交实际执行的命令和结果，区分单元测试、真实基础设施、浏览器流程和模型质量。不要把重复执行或继承测试的计数相加为覆盖量。准备现场说明一个越权测试、一个迟到完成竞态和一个恢复案例。
+
+当前真实生成适配器可接 OpenAI 兼容服务，但真实服务配置与评测按用户要求延后。嵌入仍是32维非语义演示数据；固定数据集、冻结评分标准和演示检索对比不证明真实语义质量。真实嵌入迁移、人工引用支持标注、正式保留集、吞吐与成本测量均应如实说明状态。
+
+可用于简历的描述：实现了包含私有资料解析、可追溯问答、版本化报告与导出的全栈应用；以事务 Outbox、租约和 fencing 保障任务恢复，以服务器授权和引用有效性校验约束 AI 数据范围。具体测试数字在最后验收完成后从记录中填写，不写未经运行的准确率、QPS 或节省费用。

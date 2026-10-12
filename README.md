@@ -1,86 +1,66 @@
-> Task 12 isolated delivery uses `researchdesk-delivery` on port 18085. See [deployment and backup/restore](docs/deployment.md), [demo](docs/demo.md), and [interview notes](docs/interview.md). Run `scripts/verify.ps1 -Scope Foundation` for the available foundation. Default Full verification fails closed until the integrated report/export journey exists. Real-model evaluation is deferred by the user; no quality score is claimed.
-
 # ResearchDesk
 
-A separate research workspace built with React/TypeScript, Spring Boot, and an internal Python service. The workspace now provides email-form account registration, login, and private projects, plus service health and shared contracts. Private PDF/Markdown uploads now run through recoverable extraction and a published PostgreSQL/pgvector index; retrieval, generation, and reports arrive in later tasks. No model output is simulated or claimed as real.
+面向私有资料研究的全栈 AI 应用：React / TypeScript 前端、Spring Boot 业务服务、Python AI 服务，配合 PostgreSQL / pgvector、Redis 和私有对象存储。
 
-## Run locally (Windows / PowerShell 7)
+已集成资料上传与原文预览、带来源的流式问答、可编辑报告、不可变版本、Markdown / 中文 PDF 导出，以及用户范围的用量记录。当前交付使用明确标识的演示模式；完整集成验收进展见 [验收记录](docs/integration-acceptance.md)，不能用单模块测试替代完整验收。
 
-Prerequisites: Git, JDK 21–25, Node 20.19+ or 22.12+, Python 3.11–3.13, and Docker with Linux containers. Set `JAVA_HOME` to the intended JDK; the tested machine's existing value still pointed to JDK 17 even though `java` on PATH was JDK 25. Only the project proxy binds a host port, on loopback by default.
+## 功能与边界
+
+- 私有账户和项目：服务端会话、HttpOnly Cookie、CSRF 校验、资源所有权隔离。
+- PDF / UTF-8 Markdown 上传：默认 20 MiB、200 页、每项目 50 份；可收紧限制。扫描件 OCR 不在本版范围。
+- 可靠解析：PostgreSQL 保存任务与 Outbox，Redis 负责分发；租约、attempt 和 fence 防止旧 worker 发布结果。解析在受限进程中执行。
+- 原文与来源：Markdown 段落定位、PDF 分页图片预览；删除立即撤销后续读取和检索，异步清理对象与向量。历史正文保留，删除的引用不再提供摘录。
+- 研究问答：选择资料范围、流式草稿、服务端引用校验、取消、断线补读及刷新恢复。浏览器只调用 Java，供应商凭据只在服务端。
+- 报告：从一次生成打开对应新草稿；编辑、历史版本、保存冲突与另存副本；按已保存版本导出 Markdown / PDF。
+- 用量：每个运行幂等记录，缺失 token 用量显示“未知”；只有匹配模型和完整价格配置时才给出带价格日期的估算，演示结果不是账单。
+
+真实 OpenAI 兼容生成适配器已实现，服务地址、模型和密钥按用户要求在项目完成后配置。**当前嵌入是 32 维 SHA256 确定性演示数据，不具备语义检索质量保证**；真实语义嵌入需要版本化迁移和重新索引，不能只改一个模型环境变量。真实模型、人工质量标注与正式保留集评测尚未执行。
+
+## 本地启动与验收
+
+使用 PowerShell 7、JDK 21–25、Node 22.12+、Python 3.11–3.13、Docker Linux containers。浏览器验收使用已安装的 Microsoft Edge 和锁定的 Playwright。首次安装需要下载依赖、基础镜像与固定 MinIO 源码。
 
 ```powershell
-# From the repository root; choose your installed JDK location.
+# 在仓库根目录执行；将 JAVA_HOME 改为实际安装路径。
 $env:JAVA_HOME = 'C:/Program Files/Microsoft/jdk-25.0.4.7-hotspot'
 Copy-Item .env.example .env
 ./scripts/setup.ps1
-./scripts/build.ps1
+./scripts/build.ps1 -Project researchdesk-test-integration -Port 18087
 . ./scripts/runtime.ps1
-Initialize-Runtime -Project researchdesk-delivery -Port 18085
+Initialize-Runtime -Project researchdesk-test-integration -Port 18087
 Invoke-DeliveryCompose up -d --no-build
-./scripts/test-compose.ps1
+./scripts/verify.ps1 -Scope Full -Project researchdesk-test-integration -Port 18087
 ```
 
-Open `http://127.0.0.1:18085`. Java liveness is `GET /api/health` and readiness is `GET /api/ready`. Internal AI liveness/readiness are `/health` and `/ready` on port 8000 inside the Compose network. Liveness returns `200 {"status":"UP"}` during dependency outages; readiness returns 503 if the actual database or Redis probe fails. `test-compose.ps1` stops and restores this project's Redis and PostgreSQL separately to verify those behaviors; run it on a development instance.
+打开 `http://127.0.0.1:18087`，注册自己的账户后创建项目；没有共享默认账户。密码至少 12 个字符且不超过 72 个 UTF-8 字节。
 
-The Dockerfiles package tested host artifacts and the downloaded, hash-checked Linux wheels; run `build.ps1` before `compose build`. The AI wheel target is Linux amd64 / CPython 3.12 / musl; another architecture requires a corresponding wheel target. No unrelated project service or database is used.
+`researchdesk-test-integration` 是可重复验收环境，专用入口 18087，测试数据库仅绑定 `127.0.0.1:15487`。完整验收会暂时停止和恢复此环境的依赖、注入故障并执行冷备份恢复，请使用测试资料。日常演示可单独使用 `researchdesk-delivery:18085`，其数据库不开放主机端口，见 [部署说明](docs/deployment.md)。不要混用两个环境的验收参数。
 
 ```powershell
-./scripts/test-api.ps1 -Test ContractsTest       # Maven test; passes -Dtest
-./scripts/test-api.ps1 -Test HealthIT -Integration    # Maven verify; passes -Dit.test
-./scripts/test-contracts.ps1                   # regenerate, check drift, Python/TS/Java checks
-./scripts/generate-contracts.ps1               # intentionally update generated types
-apps/ai/.venv/Scripts/python.exe -m pytest apps/ai/tests
-Invoke-DeliveryCompose config --quiet
-Invoke-DeliveryCompose down       # preserve development data volumes
+./scripts/verify.ps1 -Scope Unit       # 契约、单元、组件和前端构建
+./scripts/smoke.ps1 -Scope Full -Project researchdesk-test-integration -Port 18087
+./scripts/test-contracts.ps1           # OpenAPI 类型生成与漂移检查
+Invoke-DeliveryCompose down            # 停止当前选中的环境，保留数据卷
 ```
 
-The Maven integration tests default to unavailable host dependencies (503). For a host-run API pointing to available PostgreSQL/Redis, set `EXPECTED_READINESS=200`. Container acceptance always verifies both available and unavailable states using real dependencies. The Maven wrapper and all caches are local to this repository. Dependency resolution requires network access on a clean machine; the Task 1 report records the Windows sandbox TLS workaround used here.
+完整验收包括真实 Java / Python / PostgreSQL / Redis / MinIO 链路、浏览器上传到报告导出、所有权隔离、取消与删除竞态、生成超时、worker / 队列恢复，以及报告版本和导出文件恢复。模型采用明确标注的演示适配器及本地故障服务，不把这些测试当成真实模型质量分数。
 
-## Contracts and configuration
+## 配置与架构
 
-`contracts/openapi.json` is the canonical OpenAPI 3.1 definition. It specifies TaskState, RunState, RunKind, GenerationRequest, Citation, ApiError, InternalTask, and each discriminated RunEvent payload. TypeScript and Pydantic types are generated from it; Java DTOs share the exact JSON field names, with shared fixture round trips checked across languages. Unknown enum values fail validation. The drift check regenerates committed files before testing so stale generated types cannot silently pass.
+`contracts/openapi.json` 是公共契约来源，TypeScript 与 Pydantic 类型由脚本生成。Java 授权资料范围、控制运行终态和报告事务；Python 只使用冻结的授权范围进行解析、检索与生成。业务数据库和检索数据库使用不同账号权限，迁移账号不交给运行中的服务。
 
-Only Java will authorize user/project/document scope and forward AI traffic; the internal service has no host port or browser-facing proxy route. Auth and project endpoints are defined in the canonical contract. The migration-only Compose job applies versioned Flyway migrations before Java starts; the running API has business-schema privileges and narrowly typed publication-guard functions; Python has retrieval-schema privileges and cannot change Java-owned attempt/fence/lease fields. There is no model integration. `.env.example` reserves provider and limit settings for later tasks. Do not put credentials into frontend builds. Project ownership is checked by Java using both resource and session-user IDs. Internal task callbacks require the shared INTERNAL_SERVICE_TOKEN, and Java rejects stale attempts, fences and expired leases. The development token in Compose must be replaced for production; it is never present in browser builds.
+`.env.example` 描述生成模式、资源上限和可选价格配置。价格由服务端按模型匹配，需同时设置输入/输出每百万 token 价格、币种和价格日期。供应商用量缺失时不估算费用。不要把密钥写进前端构建或提交到 Git。
 
-This Compose baseline is development-only. It uses HTTP on loopback; production needs HTTPS and secrets. Task 12 replaces the earlier vulnerable cached MinIO baseline with a pinned build of fixed official source; see the Task 12 acceptance report for actual build and runtime verification. No MinIO storage/admin ports are exposed to the host. See [dependency baseline](docs/dependency-baseline.md) for exact versions, digests, official sources, and limitations.
+会话默认 24 小时过期；退出使服务端会话失效。账号口令使用 BCrypt，写操作校验 CSRF 和来源；没有邮件验证或密码找回。原文、问题、报告会按用途发送给所配置的模型服务，页面有说明；日志只记录关联 ID、耗时和失败类别，不记录内容或认证信息。
 
-## Accounts and private projects
+存储使用固定的官方 MinIO 修复版源码构建，并有未完成分片过期检查。该上游已归档；固定一个已知问题不等于持续维护或完整漏洞审计。HTTP 本地验收不代表公网生产部署完成，TLS、独立凭据与受限桶权限见部署文档。
 
-Open http://127.0.0.1:18085 and register with an email-form username and a password of at least 12 characters (at most 72 UTF-8 bytes). There is no email verification or password recovery. Projects are private to the account. Logout revokes the server session; expired/revoked sessions clear private frontend state and return to login.
+## 交付材料
 
-Server sessions expire after 24 hours by default, use a random HttpOnly SameSite=Lax cookie, and store only its SHA256 digest in PostgreSQL. Write operations use the per-session X-CSRF-Token returned from auth/session. Registration/login before authentication reject cross-origin browser requests; when a valid session exists they also require its CSRF token. Login rotates both cookie and CSRF token. BCrypt cost12 hashes passwords. Five login attempts per email in a 15-minute window are allowed; the sixth is429. The edge overwrites X-Real-IP for the additional IP limits (100 login/registration attempts per15minutes).
+- [演示流程](docs/demo.md) 与 [面试讲解](docs/interview.md)
+- [部署、TLS 与备份恢复](docs/deployment.md)
+- [评测协议](evals/protocol.md) 与 [评测边界](docs/evaluation-results.md)
+- [各模块原始交付记录](docs/parallel/integration-milestone.md)
+- [用量实现](docs/integration-usage.md) 与 [独立集成审查](docs/integration-review.md)
 
-Fresh PostgreSQL volumes provision the separate login roles automatically. For an existing Task1 volume, recreate only this project's PostgreSQL service to mount the provisioning files, then provision before starting the migration/API:
-
-```powershell
-Invoke-DeliveryCompose up -d --no-build postgres
-./scripts/provision-database.ps1
-Invoke-DeliveryCompose up -d --no-build
-./scripts/test-api.ps1 -Test ProjectOwnershipIT -Integration
-```
-
-ProjectOwnershipIT is explicit Compose acceptance, uses unique fixture accounts, and cleans only those accounts/projects/sessions. It fails if the API/database are unavailable. It needs access to this project's Docker daemon for PostgreSQL fixture setup/cleanup; it does not expose a database port. Unit/host health checks continue to run separately. Set SESSION_COOKIE_SECURE=true behind production HTTPS and replace all development database passwords. API and AI runtime containers never receive the PostgreSQL administrator password; only the exited migration job uses it.
-
-## Private document uploads
-
-Open a project and select a PDF or UTF-8 Markdown file. The upload disclosure explains that source material will be used with the configured model service. Accepted sources begin PROCESSING with a QUEUED task. The internal worker claims a database lease, extracts text and publishes all validated chunks before Java marks the source READY. Transient failures retry at most three times after the initial attempt; exhausted transient failures show a controlled retry action, while permanent parsing errors require a corrected upload. Lists and task reads always authorize the session owner and omit internal object keys.
-
-The default single-file limit is20MiB, PDF limit200pages, and project quota50documents. MAX_FILE_BYTES, MAX_PDF_PAGES, and MAX_DOCUMENTS_PER_PROJECT in .env may tighten these defaults; larger values fail startup. The proxy allows22MiB total multipart framing and returns a stable JSON413 for larger requests. Java applies the actual per-file bound while streaming to a temporary disk file. Markdown must decode strictly as UTF-8 and contain text. PDF admission rejects encryption, malformed files, excess pages and no extractable text; it performs a one-shot presence/metadata check in a separate JVM, limited to128MiB heap,96MiB metaspace,10seconds,2concurrent inspectors and32MiB total decoded streams. Full extraction runs in a separate Python process with256MiB memory,8CPU seconds on Linux,10seconds wall time,2concurrent parser slots,32MiB decoded streams and32MiB protocol-output bounds. Windows host checks use a Job Object memory bound. External file/network access is denied after trusted library/codec imports, and library logs cannot contaminate the result file. Markdown retains heading text and paragraph numbers; PDF chunks retain page numbers. These bounds can reject structurally complex sources.
-
-Internal Java storage uses a private MinIO bucket on the existing Compose network; no storage/admin port or object URL is exposed to the browser. Storage writes precede the short project-row-locked transaction. That transaction creates a document, version, parsing task and Outbox together, with a project/digest unique constraint. Duplicate uploads reuse the persisted IDs and state, including at quota. A durable storage_cleanup intent exists before every external object write; successful promotion removes it in the same transaction, duplicate/rollback compensation deletes the object when possible, and failed compensation leaves the intent for cleanup. The Outbox dispatcher delivers to a Redis consumer group and rescans queued tasks every5seconds to recover a lost stream/group. Workers heartbeat a30second lease. Expired leases allocate a new attempt and fence. Retry backoff is2/4/8seconds plus0–500ms jitter. Unpublished/partial writes and old attempts cannot become READY. Cleanup reconciles due intents, retains them after transient MinIO errors and retries after10seconds. Upload promotion/compensation and cleanup share a per-object advisory lock; any referenced object is retained. Task 12 adds explicit aged incomplete-multipart reconciliation; verify its policy and tests before deployment.
-
-```powershell
-./scripts/test-api.ps1 -Test UploadIT -Integration
-./scripts/test-ingestion.ps1       # real Redis/PostgreSQL/MinIO recovery acceptance
-./scripts/test-upload-limits.ps1   # temporarily tests1KiB/2pages/2sources, then restores process settings and API
-npm --prefix apps/web test
-npm --prefix apps/web run test:e2e:documents
-```
-
-The browser acceptance uses locked Playwright1.64.0 and a fresh isolated headless Edge profile by default. Set E2E_BROWSER_CHANNEL to another installed Playwright-supported channel if necessary. It uploads only its own disposable fixtures, verifies actual PostgreSQL task/outbox state, checks upload errors and390px layout, and cleans its fixture account/project/objects. Screenshots are written under .cache/task3-browser/screenshots. Integration probes briefly stop/pause only this project's MinIO and always restore it; run them on the local development stack. The pinned MinIO security/production limitation above still applies.
-
-The current embedding adapter is explicitly `deterministic-demo-sha256-v1` with32dimensions and index version `sections-v1`. It is a deterministic pipeline fixture and provides no real semantic/model quality claim. Model identity, dimensions and index version are persisted; an incompatible adapter is rejected before any write and requires a new index/reindex workflow. No provider key is needed.
-
-Task 12 storage hardening and incomplete-multipart handling are documented in the delivery acceptance report; completed-object cleanup alone does not remove unfinished upload IDs.
-
-`build.ps1` runs container-independent Python checks before packaging; after starting Compose, run `test-ingestion.ps1` for all ingestion integration checks. These tests deliberately stop and restore only ResearchDesk AI/MinIO and delete only its Redis ingestion stream plus disposable fixture records. PostgreSQL remains the task source of truth.
+设计和实施计划保存在 `docs/superpowers/`。本文不宣称未经测量的吞吐、费用、语义准确率或生产恢复目标。

@@ -1,11 +1,16 @@
-# Honest demo walkthrough
+# ResearchDesk 演示流程
 
-Use a private local account created through registration; there is no seeded shared password or account. Open the isolated proxy at http://127.0.0.1:18085 after following deployment.md.
+在专用本地环境准备自己有权使用的中文 Markdown / 文字 PDF。完整验收使用 http://127.0.0.1:18087；独立日常演示环境可使用18085，按 deployment.md 启动。注册自己的账号，不展示密钥或私有用户数据。
 
-1. Register, create a project, upload a small UTF-8 Markdown file containing facts you authored. Wait for READY; explain the database task, Outbox, worker lease and publication fence.
-2. Try an unsupported or empty file and show the controlled validation message. Open a second account and verify the first account's project is inaccessible.
-3. On disposable data run `./scripts/test-ingestion.ps1`. This performs real isolated storage/queue/worker recovery tests; present actual output from this run, not a simulated green badge.
-4. After feature integration, run `./scripts/smoke.ps1 -Scope Full`: ask a source-grounded question, navigate a citation, edit/save a report version and download Markdown/PDF. Until the full journey is present, stop here and label these steps pending.
-5. Explain model mode explicitly. The current deterministic embedding fixture demonstrates pipeline behavior. Generation demo mode and real adapter arrive through the generation branch. Real OpenAI-compatible evaluation is deferred until the user configures it; do not request credentials in the demo or claim model quality scores.
+1. 创建私有项目，上传包含几条明确事实的资料。等待 READY，说明任务、Outbox、租约与发布 fence 如何防止半成品被检索。
+2. 在研究页选择资料提问。展示演示模式标识、流式草稿和完成后的引用；点击引用查看对应原文段落或 PDF 页。
+3. 刷新页面恢复会话。需要演示断网/取消时使用独立验收脚本，展示已有运行的恢复，不把重新生成冒充重连。
+4. 选择生成报告，完成后直接打开该次生成的草稿。编辑并保存新版本，查看旧版本；说明同一版本并发保存返回冲突，草稿可另存副本。
+5. 导出已保存版本的 Markdown 和中文 PDF。未保存的编辑不进入导出；引用编号、来源附录和已删除来源状态由服务器处理。
+6. 打开用量面板。演示与缺失用量显示未知，不展示虚构的零费用；真实费用只会在收到用量并配置匹配价格及日期后估算。
+7. 删除一个测试来源，展示后续原文访问被撤销、引用显示已删除，说明历史答案/报告正文仍保留。
+8. 用第二个测试账户验证项目隔离。故障恢复与冷备份演练只在专用测试环境执行，展示实际命令与验收记录。
 
-Use only redistributable sample material. Hide local secrets and private user content when presenting logs. Show request/task/run IDs where implemented, not raw prompts or source text. Actual acceptance counts and limitations belong in task12-acceptance.md and PARALLEL-REPORT.md; never invent latency, throughput, cost, or evaluation numbers.
+`./scripts/smoke.ps1 -Scope Full -Project researchdesk-test-integration -Port 18087` 自动执行主要浏览器旅程。完整故障与恢复检查使用 verify.ps1；其最新结果由 integration-acceptance.md 记录。
+
+展示时明确：当前向量是 SHA256 演示嵌入；真实语义嵌入需要迁移与重建索引。OpenAI 兼容生成接口已实现，但用户尚未配置真实服务。固定60题数据集及40/20切分用于后续评测，演示诊断不能当作真实质量成绩，保留集尚未运行。
