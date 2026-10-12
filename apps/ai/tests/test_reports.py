@@ -42,3 +42,23 @@ def test_stalled_provider_deadline():
 @pytest.mark.parametrize('text',['[[cite:c1','[[cite:fake]]','uncited claim'])
 def test_invalid_report_rejected(text):
     with pytest.raises(ValueError): asyncio.run(generate_report([evidence()],Provider(text),'Q',['v1']))
+
+def test_sync_provider_json_evidence_contract():
+    import json
+    class SyncDemo:
+        def stream(self,messages,max_tokens,deadline):
+            data=json.loads(messages[-1]['content'])
+            assert data['question']=='Q' and data['history']==[]
+            yield data['evidence'][0]['text']+' [[cite:'+data['evidence'][0]['chunk_id']+']]'
+    result=asyncio.run(generate_report([evidence()],SyncDemo(),'Q',['v1']))
+    assert result['citations'][0].chunkId=='c1'
+
+def test_sync_stalled_provider_deadline():
+    import time
+    class SyncStalled:
+        def stream(self,*args,**kwargs):
+            time.sleep(.2)
+            yield '[[cite:c1]]'
+    started=time.monotonic()
+    with pytest.raises(TimeoutError): asyncio.run(generate_report([evidence()],SyncStalled(),'Q',['v1'],deadline=started+.01))
+    assert time.monotonic()-started < .15
