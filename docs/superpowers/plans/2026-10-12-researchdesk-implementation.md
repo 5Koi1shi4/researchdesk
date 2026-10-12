@@ -102,11 +102,11 @@ type GenerationRequest = {
 
 **Interfaces:** `POST /api/projects/{id}/documents` 接收 multipart，返回 `{documentId, versionId, taskId, state}`；列表和任务查询返回数据库状态。DocumentState 为 PROCESSING、READY、FAILED、DELETING、DELETED。
 
-- [ ] 编写失败测试：20 MiB 以上返回 413；伪造扩展名、非法 UTF-8、加密 PDF 返回稳定错误；第 51 份返回配额错误；并发上传相同内容只产生一个文档及有效任务。
-- [ ] 运行 `./scripts/test-api.ps1 -Test UploadIT -Integration`，确认目标断言失败。
-- [ ] 实现流式上传限制、类型检测、项目行锁或等效原子配额控制、项目内内容摘要唯一约束；对象写入失败不得创建成功业务记录，事务失败后的孤儿对象列入清理队列。
-- [ ] 同一数据库事务写文档、任务与 Outbox。前端只展示后端状态；上传前提示资料将用于配置的模型服务，失败显示明确原因及操作。
-- [ ] 重跑集成测试和 `npm --prefix apps/web test -- DocumentPage.test.tsx`；提交 `feat: accept bounded document uploads`。
+- [x] 编写失败测试：20 MiB 以上返回 413；伪造扩展名、非法 UTF-8、加密 PDF 返回稳定错误；第 51 份返回配额错误；并发上传相同内容只产生一个文档及有效任务。
+- [x] 运行 `./scripts/test-api.ps1 -Test UploadIT -Integration`，确认目标断言失败。
+- [x] 实现流式上传限制、类型检测、项目行锁或等效原子配额控制、项目内内容摘要唯一约束；对象写入失败不得创建成功业务记录，事务失败后的孤儿对象列入清理队列。
+- [x] 同一数据库事务写文档、任务与 Outbox。前端只展示后端状态；上传前提示资料将用于配置的模型服务，失败显示明确原因及操作。
+- [x] 重跑集成测试和 `npm --prefix apps/web test -- DocumentPage.test.tsx`；提交 `feat: accept bounded document uploads`。
 
 ### Task 4：可靠解析与幂等索引
 
