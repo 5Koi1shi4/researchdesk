@@ -1,0 +1,34 @@
+{
+  "version": "library-v1.1",
+  "frozen_date": "2026-10-12",
+  "review_status": "independent-review-pending",
+  "holdout_execution": "locked-user-deferred",
+  "thresholds": {
+    "recall_at_5": 0.8,
+    "citation_support_accuracy": 0.9,
+    "key_claim_citation_coverage": 0.9,
+    "refusal_accuracy": 0.9,
+    "task_completion": 0.8
+  },
+  "sha256": {
+    "evals/dataset.jsonl": "d8ed080e8f6fdb38f057e61eb3ac1ef444ec6e990fc7f23105c78d3cbf05019d",
+    "evals/split.json": "4a08f6705f4caa928e11bcbd581675247fb348bbdd57abd8b5b534af21eadfdb",
+    "evals/protocol.md": "368378d041cda216a8634b7104656e91d39bc7492e00832a81745476db9e35c3",
+    "evals/score.py": "f49103dc180414011c2e041ae6992fd655ec45956653fd0c003801852f1608eb",
+    "evals/run.py": "4bc166759703592be5bcc8dfec0cac34863227c77566f56938e865602b01809c",
+    "apps/ai/ingestion/indexer.py": "409fad12c98bf4549d3ffc6227c04e756112cab2efc8f6ddf2c72dc36c8aff71",
+    "apps/ai/retrieval/hybrid.py": "078d81e66750f30974d4e9c925b1d64889746b548a4a7b0f9edf5441c6ab7921",
+    "apps/ai/retrieval/reranker.py": "de2ce1b13bbb692c05bed63f163bd96697068f26770e5e02cb147ead2c913d8c",
+    "apps/ai/retrieval/types.py": "b1629bfbb65a14d2f7ac4b56f0a528240712b288438ad15a5186e0798fb5c275",
+    "evals/fixtures/chunks.json": "f8aa55fce336871ce9aa153ca9860baa7f3f8aaa384dbeee2bfbf260b3c176c3",
+    "evals/fixtures/expansion.md": "a66a2acdda46597c619064d6a2fc3aaedc1e13940861f8e613236814a724bdac",
+    "evals/fixtures/LICENSE.md": "47550c7640b4136293b231585374d02588c1fd843fb41ef8e51748937e92174c",
+    "evals/fixtures/notice.md": "9d1c37f0cb638760afc203e3ed1ff9ffde744f890429bdabde29c95b12d04381",
+    "evals/fixtures/pilot.md": "5f84ce14feb78e0f28d62f641aa8124bfacbe82bb12b5036b026509f9d89682d",
+    "evals/fixtures/private.md": "0fac8f386c529d419b3090225389e4b56c9e115c4e428e3a9ae44ba7956e94cb",
+    "evals/fixtures/results.md": "67e1531ecce9e30c0278ea616f7d919c88284d4e1601d8131dd5722273e01364",
+    "evals/fixtures/untrusted.md": "22cb4fa20f6bd207162cc492437d821a39ddd7fc5f701ed3f0dad73ebd0146dc"
+  },
+  "supersedes_freeze_sha256": "0a7ccd5581e77daa5c924e83d4144014fb4e336ca34f2cb90242d9ce12028ede",
+  "revision_reason": "Validate provider usage object; dataset, split, scoring thresholds unchanged; no holdout run has occurred."
+}
