@@ -33,5 +33,3 @@ export function ReportPreview({markdown,citations}:{markdown:string;citations:Ci
  }
  return <><article className="report-preview" aria-label="报告预览">{blocks.length?blocks:<p>开始撰写报告，预览会显示在这里。</p>}{present.length?<section aria-label="引用附录"><h3>引用资料</h3><ol>{present.map(c=><li key={c.chunkId}>{c.title}{c.page!==null?` · 第 ${c.page} 页`:c.paragraph!==null?` · 第 ${c.paragraph} 段`:''}{c.availability==='DELETED'?' · 来源已删除':''}</li>)}</ol></section>:null}</article>{selected?<aside className="report-evidence" aria-label="引用摘录"><h3>{selected.title}</h3><p>{selected.availability==='DELETED'?'来源已删除，原文与摘录无法访问。':'保存时的引用摘录'}</p>{selected.availability==='DELETED'?null:<blockquote>{selected.excerpt||'没有保存摘录。'}</blockquote>}<button className="secondary" onClick={()=>setSelectedChunkId(null)}>关闭摘录</button></aside>:null}</>;
 }
-
-

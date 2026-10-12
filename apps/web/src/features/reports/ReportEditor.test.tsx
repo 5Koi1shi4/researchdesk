@@ -67,5 +67,3 @@ it('hides the selected excerpt panel when its marker is removed',()=>{
  expect(screen.queryByRole('complementary',{name:'引用摘录'})).toBeNull();expect(screen.queryByText('来源摘录')).toBeNull();
 });
 it('sends the base version and CSRF and makes a successful save clean',async()=>{let savedBody:any;vi.stubGlobal('fetch',vi.fn(async(path:string,options:RequestInit)=>{if(options.method==='POST'){savedBody=JSON.parse(options.body as string);expect(new Headers(options.headers).get('X-CSRF-Token')).toBe('csrf');return response({...version,version:2,markdown:savedBody.markdown});}return response(path.endsWith('/versions')?[version]:path.endsWith('/report-1')?report:version);}));render(<ReportEditor reportId="report-1" csrfToken="csrf" onClose={()=>{}}/>);fireEvent.change(await screen.findByLabelText('报告 Markdown'),{target:{value:'新版正文'}});fireEvent.click(screen.getByRole('button',{name:'保存新版本'}));await screen.findByText('已保存版本 2');expect(savedBody).toEqual({baseVersion:1,markdown:'新版正文'});const e=new Event('beforeunload',{cancelable:true});window.dispatchEvent(e);expect(e.defaultPrevented).toBe(false);});
-
-

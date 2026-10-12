@@ -1,8 +1,10 @@
 # Reports independent review
 
+**Final verdict after scoped rereview: approved for the reviewed reports changes. P1 and P2 are addressed; no important finding remains open.** The initial findings and their evidence are retained below, followed by closure details.
+
 Reviewed 2026-10-12. Fixed point: `474b9e5070ce94c63b925ff72d06948f087a3f8a`; committed reports head: `1c84a83`. Scope includes `git diff 474b9e5...HEAD`, the working-tree generated Python changes, and intended untracked Java report/export package, its tests, and V008/V009 migrations. Reviewed against `../COORDINATION.md`, Tasks 9/10 briefs, and this clone's approved design/plan. No feature code was changed by this reviewer.
 
-**Verdict: request changes.** One P1 export recovery defect and one P2 deleted-source preview defect need fixes. Generation lifecycle integration remains an explicitly allowed pending dependency; the reports branch correctly supplies a completion seam rather than a competing run scheduler.
+**Initial verdict (superseded by the scoped rereview): request changes.** One P1 export recovery defect and one P2 deleted-source preview defect need fixes. Generation lifecycle integration remains an explicitly allowed pending dependency; the reports branch correctly supplies a completion seam rather than a competing run scheduler.
 
 ## Standards
 
@@ -33,3 +35,22 @@ Internal renderer request length permits more than the public report length, but
 Scope checks found no additional actionable P1/P2 defect in immutable history, ownership/CSRF, citation canonical project/version scope, deletion-aware download denial, completion run idempotence, private storage, or the resource-free Chinese PDF path. Real-provider quality evaluation remains deferred by user instruction and is not claimed by this review.
 
 Summary: Standards 2 findings, worst P1 unbounded export body; Spec 2 findings, worst P1 blocked durable export recovery. Both axes identify the same two defects.
+
+## Final scoped rereview
+
+Rereviewed the two fixes and their new regression coverage on 2026-10-12. UI fix: `edb777f7fe6aed66617289c1ee20271538022065`. Java fix: stable current intended `ExportAdapter.java`, `ExportService.java`, `ExportAdapterTest.java`, and `ExportWorkflowIT.java` supplied for review. This was a scoped rereview, not a repeated full branch scan.
+
+| Finding | Final status | Closure evidence |
+| --- | --- | --- |
+| P1: unbounded response-body read blocks export recovery | Addressed | `ExportAdapter.java:63-88` uses `sendAsync`, waits only for the remaining total deadline, and cancels the response and subscription. Its body future completes only after the complete response is consumed; `LimitedBodySubscriber` independently enforces 20 MiB. `EXPORT_RENDER_TIMEOUT_MS` defaults to 90,000 and rejects values that loosen that cap. |
+| P2: selected citation retains a revoked excerpt | Addressed | `ReportPreview.tsx:10,18,34` stores only the selected chunk ID, resolves the selected citation from current props on every render, and omits the excerpt for every DELETED entry, even if a non-null excerpt is supplied. |
+
+`ExportAdapterTest` exercises a response that sends 200 headers and a partial body then stalls, plus a response exceeding 20 MiB. Its inspected targeted log, `.cache/java-finish-adapter-green.log`, reports 2 tests, zero failures/errors/skips and BUILD SUCCESS. The code now bounds the entire response transfer that the initial JDK probe showed was unbounded.
+
+The UI regressions replace the earlier contradictory deleted-snapshot expectation. They cover an open AVAILABLE citation rerendered as DELETED/null, direct DELETED/non-null input, current AVAILABLE excerpt replacement, and selected-marker removal. The frontend owner's recorded evidence in `docs/frontend-reports-milestone.md` reports the three relevant red regressions before the fix, then 22 passing tests and a passing TypeScript/Vite build after the fix. This reviewer inspected the tests, component, commit and recorded evidence; it did not rerun that suite.
+
+The related export hardening retains the one-hour cleanup eligibility default and now holds the matching advisory key lock from durable cleanup intent through storage write and fenced publication. Unlock/connection release runs on success and failure. The workflow also persists the required 2/4/8-second retry delays and stops after four total attempts or a permanent renderer error. `ExportWorkflowIT` uses real PostgreSQL for those state, timing and lock checks, with only the external object write replaced in its lock test. `.cache/java-finish-workflow-green.log` reports 3 passing tests and BUILD SUCCESS.
+
+The inspected `.cache/java-finish-all-verify.log` subsequently completed with BUILD SUCCESS at 13:28:52 +08:00: 13 unit tests and 12 integration tests, all with zero failures/errors/skips. The parent owns the final container rebuild and browser rerun. Generation/source sibling integration and real-provider quality evaluation remain the documented pending/deferred dependencies, not unresolved findings from this scoped rereview.
+
+No important regression was found in the reviewed fixes. Standards: both initial findings closed, zero open. Spec: both initial findings closed, zero open. No feature code was changed by this reviewer.

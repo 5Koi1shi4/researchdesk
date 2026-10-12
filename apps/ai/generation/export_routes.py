@@ -21,4 +21,3 @@ def render_export(body: ExportRequest, authorization: str=Header(default='')):
     try: data=export_report(body.markdown,body.citations,body.format)
     except ValueError as exc: raise HTTPException(422,str(exc)) from exc
     return Response(data,media_type='application/pdf' if body.format=='PDF' else 'text/markdown; charset=utf-8')
-

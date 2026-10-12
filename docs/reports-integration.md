@@ -37,4 +37,3 @@ node apps/web/tests/reports.e2e.mjs
 Before the commands above, build the Java JAR and web dist as required by the existing Dockerfiles. Install Python development dependencies from the locked project before contract checks. The PostgreSQL test override exposes only loopback15484 for the service transaction tests. Production Compose does not need this override. The report Compose project owns its named volumes; no broad stop/prune/volume deletion is part of acceptance.
 
 The inherited Compose uses a development MinIO image. Delivery owns the hardened image and final deployment scripts. This branch makes no production-readiness claim. Full uploaded-source → retrieval → generated run → report completion acceptance remains pending merged feature branches; the manual report/editor/export path and Java generation completion seam are separately tested here.
-

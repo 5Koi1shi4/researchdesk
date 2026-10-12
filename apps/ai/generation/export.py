@@ -61,4 +61,3 @@ def export_report(markdown, citations, format):
     flush()
     SimpleDocTemplate(out,leftMargin=60,rightMargin=60,topMargin=50,bottomMargin=50,title='ResearchDesk report').build(story)
     return out.getvalue()
-

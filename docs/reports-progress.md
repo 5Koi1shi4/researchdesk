@@ -24,3 +24,11 @@ Only this clone is writable. No imported commits.
 - Independent review recovered after initial reviewer quota failure. reviewer review_recovered found selected stale citation excerpt privacy regression (UI fix pending) and render body read without full deadline (Java fix in progress). Cleanup-race finding withdrawn after V002 one-hour delay was verified.
 - Root owns contracts/generated types, docs/reports-integration.md and tests/reports.compose.yaml. java_finish owns Java final fixes. A UI fix worker will own ReportPreview/tests/docs after review finishes.
 - Root final remaining: independent review fixes/review; rebuild final API+AI+web; run final Java9+regression IT/component/build/contracts/browser; copy browser evidence; write PARALLEL-REPORT.md; commit and clean status. Keep branch/clone per authorization; never main merge/push.
+
+## Final module milestone
+
+- Java code committed fba76c380b699bc13a3a40d3d589f7156880e3f7; UI deletion fix edb777f7fe6aed66617289c1ee20271538022065.
+- Independent rereview approved; P1/P2 closed, no important issue open.
+- Final rebuilt runtime verification:13 Java unit+12 IT,0/0/0 at13:34:04; browser PASS. Python65 pass/5 deselected, web22 pass/build, contracts31 Python+7 Java/TS pass.
+- Actual screenshots copied to docs/reports-evidence. PARALLEL-REPORT.md contains scope, SHAs, test commands/results, imports none, dependency and risk notes.
+- Keep branch/clone for integration. Whole-project generated lifecycle/SourceViewer acceptance remains pending sibling integration; real provider config/evaluation explicitly deferred.
